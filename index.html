@@ -1,0 +1,676 @@
+# SCREEN-TIME<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Smart Screen Time Manager</title>
+    <style>
+        :root{
+            --bg1:#3a7bd5; --bg2:#00d2ff;
+            --card:#ffffffdd; --accent:#ff6b6b; --muted:#6b7280;
+        }
+        html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:#0b1220}
+        .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+        .card{width:100%;max-width:980px;background:var(--card);border-radius:14px;box-shadow:0 10px 30px rgba(2,6,23,.18);overflow:hidden;display:grid;grid-template-columns:1fr 420px}
+        @media (max-width:880px){ .card{grid-template-columns:1fr; } .right{order:2} }
+        .left{padding:28px 32px}
+        .right{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));padding:20px;display:flex;flex-direction:column;gap:14px}
+        h1{margin:0 0 6px;font-size:20px}
+        p.lead{margin:0 0 14px;color:var(--muted)}
+        .form{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+        input,select{padding:10px 12px;border:1px solid #e6e9ef;border-radius:8px;font-size:15px;outline:none}
+        input:focus{box-shadow:0 0 0 3px rgba(0,0,0,.03)}
+        .row{display:flex;gap:8px}
+        .btn{background:linear-gradient(90deg,var(--bg1),var(--bg2));color:white;padding:10px 14px;border-radius:10px;border:0;cursor:pointer;font-weight:600}
+        .btn.ghost{background:transparent;color:var(--bg1);border:1px solid rgba(10,20,60,.06)}
+        .controls{display:flex;gap:8px;align-items:center}
+        .timer{font-size:48px;font-weight:700;letter-spacing:1px}
+        .small{font-size:13px;color:var(--muted)}
+        .dash{display:flex;flex-direction:column;gap:8px}
+        .stat{display:flex;justify-content:space-between;padding:10px;border-radius:8px;background:rgba(10,20,40,.03);align-items:center}
+        .muted{color:var(--muted)}
+        .notice{padding:8px;border-radius:8px;background:#fff8e6;border:1px solid rgba(255,180,60,.15);color:#6b4b00}
+        .auth-switch{font-size:13px;color:var(--muted);cursor:pointer}
+        footer{font-size:12px;color:var(--muted);text-align:center;padding:12px}
+        .limit-input{width:110px}
+        .toggle-row{display:flex;gap:8px;align-items:center}
+        .day-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;padding-right:6px}
+        .day-item{display:flex;justify-content:space-between;padding:8px;border-radius:6px;background:rgba(0,0,0,.03)}
+        .chart-wrap{display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px}
+        canvas{background:transparent;border-radius:8px;padding:6px}
+        /* Aesthetic chart card */
+        .chart-card {
+            background: linear-gradient(135deg, #e0ecff 60%, #f8fbff 100%);
+            border-radius: 18px;
+            box-shadow: 0 4px 24px 0 rgba(58,123,213,0.10);
+            padding: 24px 18px 12px 18px;
+            margin-top: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            min-height: 260px;
+            border: 1px solid #e3eafc;
+        }
+        .chart-card-title {
+            display:flex;
+            align-items:center;
+            gap:8px;
+            margin-bottom:8px;
+            font-weight:600;
+            color:#3a7bd5;
+            font-size:16px;
+            letter-spacing:0.5px;
+        }
+        @media (max-width:880px){ .chart-wrap{grid-template-columns:1fr} canvas{height:160px} }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card" role="application" aria-label="Smart Screen Time Manager">
+        <div class="left">
+            <h1>Smart Screen Time Manager</h1>
+            <p class="lead">Track and manage daily screen time. Auto pauses on inactivity. Runs accurately even if tab is inactive.</p>
+
+            <div id="auth-area">
+                <div id="login" class="form">
+                    <input id="login-username" placeholder="Username" />
+                    <input id="login-password" placeholder="Password" type="password" />
+                    <div class="row">
+                        <button id="btn-login" class="btn">Log in</button>
+                        <button id="btn-show-register" class="btn ghost">Register</button>
+                    </div>
+                    <div class="small muted">Demo auth stored locally (private device only).</div>
+                </div>
+
+                <div id="register" class="form" style="display:none">
+                    <input id="reg-username" placeholder="Choose username (min 3 chars)" minlength="3" />
+                    <input id="reg-email" placeholder="Email address" type="email" required />
+                    <input id="reg-age" placeholder="Age" type="number" min="1" required />
+                    <input id="reg-password" placeholder="Choose password (min 8 chars)" type="password" minlength="8" />
+                    <div class="row">
+                        <button id="btn-register" class="btn">Create account</button>
+                        <button id="btn-show-login" class="btn ghost">Back</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="app" style="display:none">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div id="greeting" style="font-weight:600">Hello</div>
+                        <div class="small muted" id="current-limit-label">Limit: —</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="small muted">Signed in as</div>
+                        <div id="user-name" style="font-weight:700"></div>
+                        <div style="margin-top:8px"><button id="btn-logout" class="btn ghost">Logout</button></div>
+                    </div>
+                </div>
+
+                <hr style="margin:14px 0;border:none;border-top:1px solid rgba(10,20,40,.06)">
+
+                <div class="timer" id="time-display">00:00:00</div>
+                <div class="small muted" id="elapsed-label">Elapsed: 00:00:00</div>
+
+                <div style="margin-top:12px" class="controls">
+                    <button id="btn-start" class="btn">Start</button>
+                    <button id="btn-pause" class="btn ghost">Pause</button>
+                    <button id="btn-reset" class="btn ghost">Reset</button>
+                    <div style="margin-left:auto" class="small muted">Status: <span id="status">Stopped</span></div>
+                </div>
+
+                <div style="margin-top:14px" class="dash">
+                    <div class="form" style="margin:0">
+                        <div class="row">
+                            <label class="small muted" style="align-self:center">Daily limit (minutes)</label>
+                            <input id="limit-minutes" class="limit-input" type="number" min="1" value="60"/>
+                            <label class="small muted" style="align-self:center">Inactivity pause (s)</label>
+                            <input id="inactivity-s" class="limit-input" type="number" min="5" value="60"/>
+                            <button id="btn-save-settings" class="btn ghost">Save</button>
+                        </div>
+                    </div>
+
+                    <div id="notice" class="notice" style="display:none"></div>
+
+                    <div>
+                        <div class="small muted">Today's total</div>
+                        <div id="today-total" style="font-weight:700">00:00:00</div>
+                    </div>
+
+                    <div>
+                        <div class="small muted">Last 7 days</div>
+                        <div class="day-list" id="day-list"></div>
+                    </div>
+
+                    <!-- Single chart with controls -->
+                    <div style="margin-top:8px">
+                        <div class="small muted">Usage overview</div>
+                        <div style="display:flex;gap:8px;align-items:center;margin:8px 0">
+                            <label class="small muted" for="period-select">Period</label>
+                            <select id="period-select" style="padding:8px;border-radius:8px">
+                                <option value="day" selected>Day</option>
+                                <option value="week">Week</option>
+                                <option value="month">Month</option>
+                                <option value="year">Year</option>
+                            </select>
+                            <label class="small muted" for="duration-number">Show last</label>
+                            <input id="duration-number" type="number" min="1" value="30" style="width:80px;padding:8px;border-radius:8px" />
+                            <button id="btn-refresh-chart" class="btn ghost" style="margin-left:auto">Refresh</button>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-card-title">
+                                <span>📊 Screen Time Trends</span>
+                            </div>
+                            <div style="flex:1;min-height:180px;">
+                                <canvas id="chart-main" aria-label="Usage chart" role="img"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="right">
+            <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                        <div class="small muted">Overview</div>
+                        <div style="font-weight:700">Stay focused. Build healthy screen habits.</div>
+                    </div>
+                    <div style="text-align:right">
+                        <div class="small muted">Today</div>
+                        <div id="side-today" style="font-weight:700">00:00:00</div>
+                    </div>
+                </div>
+
+                <div class="stat">
+                    <div>
+                        <div class="small muted">Active session</div>
+                        <div id="session-display" style="font-weight:700">0s</div>
+                    </div>
+                    <div>
+                        <div class="small muted">Limit</div>
+                        <div id="side-limit" style="font-weight:700">—</div>
+                    </div>
+                </div>
+
+                <div class="stat">
+                    <div>
+                        <div class="small muted">Auto-pause after</div>
+                        <div id="side-inactivity" style="font-weight:700">—</div>
+                    </div>
+                    <div>
+                        <div class="small muted">Status</div>
+                        <div id="side-status" style="font-weight:700">Idle</div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="small muted">Quick tips</div>
+                    <ul style="margin:8px 0;padding-left:18px;color:var(--muted)">
+                        <li>Set a daily limit and let the timer enforce breaks.</li>
+                        <li>Timer computes time using timestamps — accurate when tab inactive.</li>
+                        <li>Auto-pause prevents counting when you're away.</li>
+                    </ul>
+                </div>
+
+                <footer>
+                    Built with privacy: data stored locally. For multi-user or server storage, integrate a backend.
+                </footer>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// ...existing JS code remains unchanged...
+// (Paste your previous JS code here, no changes needed for the chart style)
+const qs = sel => document.querySelector(sel);
+const qsa = sel => Array.from(document.querySelectorAll(sel));
+const fmt = ms => {
+    const s = Math.max(0, Math.floor(ms/1000));
+    const hh = String(Math.floor(s/3600)).padStart(2,'0');
+    const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    return hh+':'+mm+':'+ss;
+};
+const todayKey = d => d.toISOString().slice(0,10);
+
+const storage = {
+    getUsers(){ return JSON.parse(localStorage.getItem('sstm_users')||'{}') },
+    saveUsers(u){ localStorage.setItem('sstm_users', JSON.stringify(u)) },
+    getCurrent(){ return localStorage.getItem('sstm_current') },
+    setCurrent(u){ localStorage.setItem('sstm_current', u) },
+    clearCurrent(){ localStorage.removeItem('sstm_current') },
+    getUserData(user){ return JSON.parse(localStorage.getItem('sstm_data_'+user) || '{}') },
+    saveUserData(user,data){ localStorage.setItem('sstm_data_'+user, JSON.stringify(data)) }
+};
+
+let state = {
+    user:null,
+    running:false,
+    startAt:0,
+    pausedElapsed:0, // ms
+    lastActivity: Date.now(),
+    inactivityThreshold:60000,
+    limitMs:3600000, // default 60 minutes
+    alarmPlaying:false,
+    tickTimer:null,
+    charts:{}
+};
+
+function showEl(id){ qs(id).style.display='block'; }
+function hideEl(id){ qs(id).style.display='none'; }
+
+function loadSettings(){
+    const data = storage.getUserData(state.user) || {};
+    state.limitMs = (data.limitMinutes ? data.limitMinutes*60000 : 60*60000);
+    state.inactivityThreshold = (data.inactivitySeconds ? data.inactivitySeconds*1000 : 60000);
+    qs('#limit-minutes').value = Math.max(1, Math.round(state.limitMs/60000));
+    qs('#inactivity-s').value = Math.max(5, Math.round(state.inactivityThreshold/1000));
+    updateSide();
+}
+
+function saveSettings(){
+    const data = storage.getUserData(state.user) || {};
+    const lm = Math.max(1, Number(qs('#limit-minutes').value || 60));
+    const isec = Math.max(5, Number(qs('#inactivity-s').value || 60));
+    data.limitMinutes = lm;
+    data.inactivitySeconds = isec;
+    storage.saveUserData(state.user, data);
+    state.limitMs = lm*60000;
+    state.inactivityThreshold = isec*1000;
+    showNotice('Settings saved');
+    updateSide();
+}
+
+function showNotice(text, time=2500){
+    const el = qs('#notice'); el.textContent = text; el.style.display='block';
+    clearTimeout(el._t); el._t = setTimeout(()=>el.style.display='none', time);
+}
+
+function setStatus(text){
+    qs('#status').textContent = text;
+    qs('#side-status').textContent = text;
+}
+
+function registerHandlers(){
+    qs('#btn-show-register').onclick = ()=>{ hideEl('#login'); showEl('#register'); }
+    qs('#btn-show-login').onclick = ()=>{ showEl('#login'); hideEl('#register'); }
+    qs('#btn-register').onclick = () => {
+        const u = qs('#reg-username').value.trim();
+        const e = qs('#reg-email').value.trim();
+        const a = qs('#reg-age').value.trim();
+        const p = qs('#reg-password').value || '';
+        if(!u || !e || !a || !p){ showNotice('Enter username, email, age and password'); return; }
+        if(u.length < 3){ showNotice('Username must be at least 3 characters'); return; }
+        if(!/^[^@]+@[^@]+\.[^@]+$/.test(e)){ showNotice('Enter a valid email'); return; }
+        if(Number(a) < 1){ showNotice('Enter a valid age'); return; }
+        if(p.length < 8){ showNotice('Password must be at least 8 characters'); return; }
+        const users = storage.getUsers();
+        if(users[u]){ showNotice('User exists'); return; }
+        users[u] = {password:p, email:e, age:a};
+        storage.saveUsers(users);
+        storage.setCurrent(u);
+        showNotice('Account created!');
+        initAfterAuth(u);
+    };
+    qs('#btn-login').onclick = () => {
+        const u = qs('#login-username').value.trim();
+        const p = qs('#login-password').value || '';
+        const users = storage.getUsers();
+        if(!users[u] || users[u].password !== p){ showNotice('Invalid credentials'); return; }
+        storage.setCurrent(u);
+        initAfterAuth(u);
+    };
+    qs('#btn-logout').onclick = ()=>{ storage.clearCurrent(); location.reload(); }
+
+    qs('#btn-start').onclick = startTimer;
+    qs('#btn-pause').onclick = pauseTimer;
+    qs('#btn-reset').onclick = resetTimer;
+    qs('#btn-save-settings').onclick = saveSettings;
+
+    // activity detection
+    ['mousemove','keydown','mousedown','touchstart','scroll'].forEach(e=>{
+        window.addEventListener(e, ()=> state.lastActivity = Date.now(), {passive:true});
+    });
+
+    // visibility to update UI
+    document.addEventListener('visibilitychange', ()=> updateUI(true));
+}
+
+function initAfterAuth(user){
+    state.user = user;
+    hideEl('#auth-area');
+    showEl('#app');
+    qs('#user-name').textContent = user;
+    qs('#greeting').textContent = 'Welcome, '+user;
+    loadSettings();
+    loadDailyOverview();
+    startTicker();
+    setStatus('Stopped');
+    updateUI(true);
+}
+
+function loadDailyOverview(){
+    const data = storage.getUserData(state.user) || {};
+    const totals = data.totals || {};
+    const today = todayKey(new Date());
+    if(!(today in totals)) totals[today] = 0;
+    data.totals = totals;
+    storage.saveUserData(state.user, data);
+    renderDayList();
+}
+
+function renderDayList(){
+    const data = storage.getUserData(state.user) || {};
+    const totals = data.totals || {};
+    const list = qs('#day-list'); list.innerHTML = '';
+    const days = [];
+    for(let i=0;i<7;i++){
+        const d = new Date(); d.setDate(d.getDate()-i);
+        const k = todayKey(d);
+        days.push({k, v:totals[k] || 0, label:d.toLocaleDateString()});
+    }
+    days.forEach(d=>{
+        const el = document.createElement('div');
+        el.className = 'day-item';
+        el.innerHTML = `<div class="small muted">${d.label}</div><div style="font-weight:700">${fmt(d.v)}</div>`;
+        list.appendChild(el);
+    });
+    qs('#today-total').textContent = fmt((storage.getUserData(state.user).totals || {})[todayKey(new Date())] || 0);
+    qs('#side-today').textContent = qs('#today-total').textContent;
+    qs('#side-limit').textContent = Math.round(state.limitMs/60000)+' min';
+    qs('#side-inactivity').textContent = Math.round(state.inactivityThreshold/1000)+' s';
+    updateCharts();
+}
+
+function accumulateToToday(ms){
+    const data = storage.getUserData(state.user) || {};
+    data.totals = data.totals || {};
+    const k = todayKey(new Date());
+    data.totals[k] = (data.totals[k] || 0) + ms;
+    storage.saveUserData(state.user, data);
+    renderDayList();
+}
+
+function startTimer(){
+    if(state.running) return;
+    state.running = true;
+    state.startAt = Date.now();
+    setStatus('Running');
+    qs('#btn-start').disabled = true;
+    qs('#btn-pause').disabled = false;
+    qs('#btn-reset').disabled = false;
+}
+
+function pauseTimer(auto=false){
+    if(!state.running) return;
+    const delta = Date.now() - state.startAt;
+    state.pausedElapsed += delta;
+    state.running = false;
+    state.startAt = 0;
+    setStatus(auto ? 'Paused (inactive)' : 'Paused');
+    qs('#btn-start').disabled = false;
+    qs('#btn-pause').disabled = true;
+    accumulateToToday(delta);
+    updateUI(true);
+}
+
+function resetTimer(){
+    if(state.running){
+        const delta = Date.now() - state.startAt;
+        accumulateToToday(delta);
+    }
+    state.running = false;
+    state.startAt = 0;
+    state.pausedElapsed = 0;
+    setStatus('Stopped');
+    qs('#btn-start').disabled = false;
+    qs('#btn-pause').disabled = true;
+    renderDayList();
+    updateUI(true);
+}
+
+function startTicker(){
+    if(state.tickTimer) clearInterval(state.tickTimer);
+    state.tickTimer = setInterval(tick, 700);
+    tick();
+}
+
+function tick(){
+    if(state.running && (Date.now() - state.lastActivity) > state.inactivityThreshold){
+        pauseTimer(true);
+        showNotice('Paused due to inactivity');
+    }
+    const elapsed = state.pausedElapsed + (state.running ? (Date.now() - state.startAt) : 0);
+    const remaining = Math.max(0, state.limitMs - elapsed);
+    qs('#elapsed-label').textContent = 'Elapsed: ' + fmt(elapsed);
+    qs('#time-display').textContent = fmt(remaining);
+    qs('#session-display').textContent = Math.floor(elapsed/1000) + 's';
+    qs('#side-today').textContent = fmt((storage.getUserData(state.user).totals || {})[todayKey(new Date())] || 0);
+    qs('#side-today').textContent = qs('#today-total').textContent = fmt((storage.getUserData(state.user).totals || {})[todayKey(new Date())] || 0);
+    if(state.running && elapsed >= state.limitMs){
+        const overshoot = elapsed - state.limitMs;
+        const sessionCounted = (state.running ? (Date.now() - state.startAt) : 0) - overshoot;
+        if(sessionCounted > 0) accumulateToToday(sessionCounted);
+        state.running = false;
+        state.startAt = 0;
+        state.pausedElapsed = state.limitMs;
+        setStatus('Limit reached');
+        qs('#btn-start').disabled = true;
+        qs('#btn-pause').disabled = true;
+        playAlarm();
+        alert('Screen-time limit reached for today.');
+    }
+}
+
+function updateUI(force){
+    qs('#current-limit-label').textContent = 'Limit: ' + Math.round(state.limitMs/60000) + ' min';
+    qs('#side-limit').textContent = Math.round(state.limitMs/60000) + ' min';
+    qs('#side-inactivity').textContent = Math.round(state.inactivityThreshold/1000) + ' s';
+    qs('#btn-pause').disabled = !state.running;
+    qs('#btn-start').disabled = state.running || state.pausedElapsed >= state.limitMs;
+    qs('#btn-reset').disabled = (state.running === false && state.pausedElapsed===0);
+    tick();
+}
+
+function updateSide(){ qs('#side-limit').textContent = Math.round(state.limitMs/60000)+' min'; qs('#side-inactivity').textContent = Math.round(state.inactivityThreshold/1000)+' s'; }
+
+function playAlarm(){
+    if(state.alarmPlaying) return;
+    state.alarmPlaying = true;
+    try{
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ac.createOscillator();
+        const g = ac.createGain();
+        o.type = 'sine';
+        o.frequency.value = 880;
+        g.gain.value = 0.0001;
+        o.connect(g); g.connect(ac.destination);
+        o.start();
+        g.gain.exponentialRampToValueAtTime(0.2, ac.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 2.0);
+        setTimeout(()=>{ o.stop(); ac.close(); state.alarmPlaying = false; }, 2100);
+    }catch(e){
+        state.alarmPlaying = false;
+    }
+}
+
+/* ----------- Single Chart with Period/Duration Controls ----------- */
+
+function msToMinutes(ms){ return +(ms/60000).toFixed(2); }
+
+function getTotalsMap(){
+    return (storage.getUserData(state.user).totals) || {};
+}
+
+function lastNDatesArray(n){
+    const arr = [];
+    for(let i=n-1;i>=0;i--){
+        const d = new Date(); d.setDate(d.getDate()-i);
+        arr.push(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+    }
+    return arr;
+}
+
+function startOfWeek(dt){
+    const d = new Date(dt);
+    const day = d.getDay();
+    const diff = (day + 6) % 7;
+    d.setDate(d.getDate() - diff);
+    d.setHours(0,0,0,0);
+    return d;
+}
+
+function computeAggregate(period, length){
+    const totals = getTotalsMap();
+    if(period === 'day'){
+        const dates = lastNDatesArray(length);
+        return {
+            labels: dates.map(d => d.toLocaleDateString()),
+            data: dates.map(d => msToMinutes(totals[todayKey(d)] || 0))
+        };
+    }
+    if(period === 'week'){
+        const labels = [], data = [];
+        const now = new Date();
+        for(let i=length-1;i>=0;i--){
+            const base = new Date();
+            base.setDate(now.getDate() - i*7);
+            const s = startOfWeek(base);
+            let sum = 0;
+            for(let j=0;j<7;j++){
+                const d = new Date(s); d.setDate(s.getDate()+j);
+                sum += totals[todayKey(d)] || 0;
+            }
+            labels.push('W ' + s.toLocaleDateString());
+            data.push(msToMinutes(sum));
+        }
+        return {labels, data};
+    }
+    if(period === 'month'){
+        const labels = [], data = [];
+        const now = new Date();
+        for(let i=length-1;i>=0;i--){
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const next = new Date(d.getFullYear(), d.getMonth()+1, 1);
+            let sum = 0;
+            for(let day = new Date(d); day < next; day.setDate(day.getDate()+1)){
+                sum += totals[todayKey(day)] || 0;
+            }
+            labels.push(d.toLocaleString(undefined, {month:'short', year:'numeric'}));
+            data.push(msToMinutes(sum));
+        }
+        return {labels, data};
+    }
+    if(period === 'year'){
+        const labels = [], data = [];
+        const now = new Date();
+        for(let i=length-1;i>=0;i--){
+            const y = now.getFullYear() - i;
+            let sum = 0;
+            for(let m=0;m<12;m++){
+                const start = new Date(y, m, 1);
+                const next = new Date(y, m+1, 1);
+                for(let day = new Date(start); day < next; day.setDate(day.getDate()+1)){
+                    sum += totals[todayKey(day)] || 0;
+                }
+            }
+            labels.push(String(y));
+            data.push(msToMinutes(sum));
+        }
+        return {labels, data};
+    }
+    return {labels:[], data:[]};
+}
+
+function createOrUpdateMainChart(cfg){
+    const id = 'chart-main';
+    const el = qs('#'+id);
+    if(!el) return;
+    if(state.charts[id]){
+        state.charts[id].data.labels = cfg.labels;
+        state.charts[id].data.datasets[0].data = cfg.data;
+        state.charts[id].options.scales.y.title.text = cfg.yTitle || 'Minutes';
+        state.charts[id].update();
+        return;
+    }
+    const ctx = el.getContext('2d');
+    state.charts[id] = new Chart(ctx, {
+        type: cfg.type || 'line',
+        data: {
+            labels: cfg.labels,
+            datasets: [{
+                label: cfg.datasetLabel || 'Minutes',
+                data: cfg.data,
+                backgroundColor: cfg.backgroundColor || 'rgba(58,123,213,0.35)',
+                borderColor: cfg.borderColor || 'rgba(58,123,213,1)',
+                borderWidth: 2,
+                fill: cfg.fill ?? true,
+                tension: 0.2,
+                pointRadius: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, title: {display:true, text: cfg.yTitle || 'Minutes'} }
+            },
+            plugins: { legend:{display:false} }
+        }
+    });
+}
+
+function updateCharts(){
+    if(!state.user) return;
+    const period = qs('#period-select').value;
+    let length = parseInt(qs('#duration-number').value, 10) || 1;
+    length = Math.max(1, length);
+    if(period === 'day') length = Math.min(length, 365);
+    if(period === 'week') length = Math.min(length, 52);
+    if(period === 'month') length = Math.min(length, 36);
+    if(period === 'year') length = Math.min(length, 10);
+
+    const agg = computeAggregate(period, length);
+    const cfg = {
+        labels: agg.labels,
+        data: agg.data,
+        type: (period === 'day' ? 'line' : 'bar'),
+        datasetLabel: 'Minutes',
+        backgroundColor: 'rgba(58,123,213,0.35)',
+        borderColor: 'rgba(58,123,213,1)',
+        yTitle: 'Minutes'
+    };
+    createOrUpdateMainChart(cfg);
+}
+
+qs('#period-select').addEventListener('change', e=>{
+    const v = e.target.value;
+    if(v === 'day') qs('#duration-number').value = 30;
+    if(v === 'week') qs('#duration-number').value = 12;
+    if(v === 'month') qs('#duration-number').value = 12;
+    if(v === 'year') qs('#duration-number').value = 5;
+    updateCharts();
+});
+qs('#duration-number').addEventListener('input', ()=> updateCharts());
+qs('#btn-refresh-chart').addEventListener('click', ()=> updateCharts());
+
+(function(){
+    registerHandlers();
+    const cur = storage.getCurrent();
+    if(cur){
+        initAfterAuth(cur);
+    } else {
+        showEl('#login');
+    }
+})();
+</script>
+</body>
+</html>
