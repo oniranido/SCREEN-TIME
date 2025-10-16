@@ -1,676 +1,923 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Smart Screen Time Manager</title>
-    <style>
-        :root{
-            --bg1:#3a7bd5; --bg2:#00d2ff;
-            --card:#ffffffdd; --accent:#ff6b6b; --muted:#6b7280;
-        }
-        html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:#0b1220}
-        .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
-        .card{width:100%;max-width:980px;background:var(--card);border-radius:14px;box-shadow:0 10px 30px rgba(2,6,23,.18);overflow:hidden;display:grid;grid-template-columns:1fr 420px}
-        @media (max-width:880px){ .card{grid-template-columns:1fr; } .right{order:2} }
-        .left{padding:28px 32px}
-        .right{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));padding:20px;display:flex;flex-direction:column;gap:14px}
-        h1{margin:0 0 6px;font-size:20px}
-        p.lead{margin:0 0 14px;color:var(--muted)}
-        .form{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
-        input,select{padding:10px 12px;border:1px solid #e6e9ef;border-radius:8px;font-size:15px;outline:none}
-        input:focus{box-shadow:0 0 0 3px rgba(0,0,0,.03)}
-        .row{display:flex;gap:8px}
-        .btn{background:linear-gradient(90deg,var(--bg1),var(--bg2));color:white;padding:10px 14px;border-radius:10px;border:0;cursor:pointer;font-weight:600}
-        .btn.ghost{background:transparent;color:var(--bg1);border:1px solid rgba(10,20,60,.06)}
-        .controls{display:flex;gap:8px;align-items:center}
-        .timer{font-size:48px;font-weight:700;letter-spacing:1px}
-        .small{font-size:13px;color:var(--muted)}
-        .dash{display:flex;flex-direction:column;gap:8px}
-        .stat{display:flex;justify-content:space-between;padding:10px;border-radius:8px;background:rgba(10,20,40,.03);align-items:center}
-        .muted{color:var(--muted)}
-        .notice{padding:8px;border-radius:8px;background:#fff8e6;border:1px solid rgba(255,180,60,.15);color:#6b4b00}
-        .auth-switch{font-size:13px;color:var(--muted);cursor:pointer}
-        footer{font-size:12px;color:var(--muted);text-align:center;padding:12px}
-        .limit-input{width:110px}
-        .toggle-row{display:flex;gap:8px;align-items:center}
-        .day-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;padding-right:6px}
-        .day-item{display:flex;justify-content:space-between;padding:8px;border-radius:6px;background:rgba(0,0,0,.03)}
-        .chart-wrap{display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px}
-        canvas{background:transparent;border-radius:8px;padding:6px}
-        /* Aesthetic chart card */
-        .chart-card {
-            background: linear-gradient(135deg, #e0ecff 60%, #f8fbff 100%);
-            border-radius: 18px;
-            box-shadow: 0 4px 24px 0 rgba(58,123,213,0.10);
-            padding: 24px 18px 12px 18px;
-            margin-top: 8px;
-            margin-bottom: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            min-height: 260px;
-            border: 1px solid #e3eafc;
-        }
-        .chart-card-title {
-            display:flex;
-            align-items:center;
-            gap:8px;
-            margin-bottom:8px;
-            font-weight:600;
-            color:#3a7bd5;
-            font-size:16px;
-            letter-spacing:0.5px;
-        }
-        @media (max-width:880px){ .chart-wrap{grid-template-columns:1fr} canvas{height:160px} }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Digital Well Being</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #4f8cff;
+      --bg: #f7f9fb;
+      --text: #222;
+      --card: #fff;
+      --accent: #e0e7ef;
+      --shadow: 0 2px 16px rgba(79,140,255,0.08);
+      --transition: 0.3s cubic-bezier(.4,0,.2,1);
+    }
+    [data-theme="dark"] {
+      --primary: #4f8cff;
+      --bg: #181c23;
+      --text: #f7f9fb;
+      --card: #232834;
+      --accent: #2a3140;
+      --shadow: 0 2px 16px rgba(79,140,255,0.15);
+    }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background var(--transition), color var(--transition);
+    }
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2200;
+    }
+    .auth-card {
+      background: var(--card);
+      color: var(--text);
+      padding: 1.25rem;
+      border-radius: 12px;
+      width: 340px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .auth-card input {
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: transparent;
+      font-size: 0.95rem;
+    }
+    .auth-card button {
+      margin-top: 0.4rem;
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .auth-card .link-btn {
+      background: transparent;
+      color: var(--primary);
+      border: none;
+      margin-top: 0;
+      padding: 0;
+      font-size: 0.98em;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    #logoutBtn {
+      position: fixed;
+      top: 1.1rem;
+      right: 4.6rem;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      padding: 0.45rem 0.7rem;
+      cursor: pointer;
+      display: none;
+      z-index: 2100;
+    }
+    .container {
+      max-width: 480px;
+      margin: 2rem auto 0 auto;
+      background: var(--card);
+      border-radius: 1.2rem;
+      box-shadow: var(--shadow);
+      padding: 2rem 1.5rem 1.5rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      animation: fadeIn 1s;
+      position: relative;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      letter-spacing: 1px;
+    }
+    .timer-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.2rem;
+    }
+    .timer-display {
+      font-size: 2.5rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      background: var(--accent);
+      padding: 0.7em 1.5em;
+      border-radius: 0.8em;
+      margin-bottom: 0.5em;
+      transition: background var(--transition);
+      user-select: none;
+    }
+    .timer-controls {
+      display: flex;
+      gap: 0.7em;
+    }
+    .timer-controls button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 0.5em;
+      padding: 0.5em 1.2em;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(79,140,255,0.10);
+      transition: background var(--transition), transform 0.1s;
+    }
+    .timer-controls button:active { transform: scale(0.96); }
+    .timer-controls button[disabled] { background: #b0c7f7; cursor: not-allowed; }
+    .alarm-section {
+      background: linear-gradient(120deg, #e0e7ef 60%, #cbe3ff 100%);
+      border-radius: 1.2em;
+      padding: 1.5em 1em 1em 1em;
+      margin-bottom: 1em;
+      box-shadow: 0 2px 12px rgba(79,140,255,0.10);
+      display: flex;
+      flex-direction: column;
+      gap: 1.1em;
+      position: relative;
+      overflow: hidden;
+      transition: background var(--transition);
+    }
+    [data-theme="dark"] .alarm-section {
+      background: linear-gradient(120deg, #2a3140 60%, #3a4a6b 100%);
+    }
+    .alarm-section::before {
+      content: "";
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 120px; height: 120px;
+      background: rgba(79,140,255,0.10);
+      border-radius: 50%;
+      z-index: 0;
+    }
+    .alarm-section form, .alarm-section ul { position: relative; z-index: 1; }
+    .alarm-section label {
+      font-size: 1.05em;
+      font-weight: 500;
+      color: #3a4a6b;
+      margin-bottom: 0.2em;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+    [data-theme="dark"] .alarm-section label { color: #b0c7f7; }
+    .alarm-section input[type="number"], .alarm-section input[type="text"], .alarm-section select {
+      padding: 0.35em 0.7em;
+      border-radius: 0.5em;
+      border: 1px solid #b0c7f7;
+      font-size: 1em;
+      background: #fff;
+      margin-right: 0.5em;
+      transition: border 0.2s;
+    }
+    [data-theme="dark"] .alarm-section input[type="number"], [data-theme="dark"] .alarm-section input[type="text"], [data-theme="dark"] .alarm-section select {
+      background: #232834;
+      color: #e0e7ef;
+      border: 1px solid #4f8cff;
+    }
+    .alarm-section input[type="number"]:focus, .alarm-section input[type="text"]:focus, .alarm-section select:focus {
+      border: 1.5px solid #4f8cff;
+      outline: none;
+    }
+    .alarm-section input[type="file"] { margin-top: 0.3em; font-size: 0.95em; }
+    .alarm-section button[type="submit"] {
+      background: linear-gradient(90deg, #4f8cff 60%, #6fc3ff 100%);
+      color: #fff;
+      border: none;
+      border-radius: 0.7em;
+      padding: 0.6em 1.5em;
+      font-size: 1.08em;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(79,140,255,0.10);
+      margin-top: 0.7em;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .alarm-section button[type="submit"]:hover { background: linear-gradient(90deg, #6fc3ff 60%, #4f8cff 100%); transform: translateY(-2px) scale(1.03); }
+    .alarm-section ul {
+      margin-top: 0.7em; padding: 0; list-style: none;
+    }
+    .alarm-section ul li {
+      background: rgba(255,255,255,0.85);
+      border-radius: 0.7em;
+      margin-bottom: 0.5em;
+      padding: 0.6em 1em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 4px rgba(79,140,255,0.06);
+      font-size: 1em;
+      transition: background 0.2s;
+    }
+    [data-theme="dark"] .alarm-section ul li { background: #232834; }
+    .alarm-section ul li span b { color: #4f8cff; font-weight: 600; letter-spacing: 0.5px; }
+    .alarm-section ul li button {
+      background: #e0e7ef; color: #4f8cff; border: none; border-radius: 0.5em; padding: 0.3em 0.9em; font-size: 0.98em; font-weight: 500; margin-left: 0.2em; cursor: pointer;
+    }
+    .alarm-section ul li button:hover { background: #4f8cff; color: #fff; }
+    [data-theme="dark"] .alarm-section ul li button { background: #2a3140; color: #b0c7f7; }
+    [data-theme="dark"] .alarm-section ul li button:hover { background: #4f8cff; color: #fff; }
+    .alarm-section .alarm-title {
+      font-size: 1.18em; font-weight: 700; color: #4f8cff; margin-bottom: 0.7em; letter-spacing: 0.5px; text-align: left; display: flex; align-items: center; gap: 0.5em;
+    }
+    [data-theme="dark"] .alarm-section .alarm-title { color: #b0c7f7; }
+    .analytics-section {
+      background: var(--accent);
+      border-radius: 0.8em;
+      padding: 1em;
+      box-shadow: 0 1px 4px rgba(79,140,255,0.04);
+      transition: background var(--transition);
+    }
+    .analytics-section h2 { font-size: 1.2rem; margin: 0 0 0.5em 0; text-align: center; letter-spacing: 0.5px; }
+    .session-list { max-height: 180px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+    .session-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.5em 0.2em; border-bottom: 1px solid #e6eaf0; font-size: 0.98em; animation: fadeIn 0.5s; }
+    .dashboard-section { margin-top: 1.5em; background: var(--card); border-radius: 0.8em; padding: 1em 0.5em; box-shadow: 0 1px 4px rgba(79,140,255,0.04); transition: background var(--transition); }
+    .dashboard-section h2 { font-size: 1.1rem; margin: 0 0 0.5em 0; text-align: center; }
+    .dark-toggle {
+      position: absolute; top: 1.2em; right: 1.2em; background: var(--accent); border: none; border-radius: 50%; width: 2.2em; height: 2.2em; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 4px rgba(79,140,255,0.08); transition: background var(--transition);
+    }
+    .dark-toggle svg { width: 1.3em; height: 1.3em; fill: var(--primary); transition: fill var(--transition); }
+    .caution-popup {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.3s;
+    }
+    .caution-content {
+      background: var(--card); color: var(--text); border-radius: 1em; box-shadow: var(--shadow); padding: 2em 1.5em 1.5em 1.5em; text-align: center; max-width: 90vw; min-width: 260px; animation: fadeIn 0.4s;
+    }
+    .caution-content h2 { color: #e67e22; margin-bottom: 0.7em; }
+    .caution-content button { margin: 0.5em 0.7em 0 0.7em; background: var(--primary); color: #fff; border: none; border-radius: 0.5em; padding: 0.5em 1.2em; font-size: 1rem; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(79,140,255,0.10); transition: background var(--transition), transform 0.1s; }
+    .caution-content button:active { transform: scale(0.96); }
+    footer { margin: 2em 0 1em 0; text-align: center; color: #888; font-size: 0.98em; letter-spacing: 0.2px; user-select: none; }
+    @media (max-width: 600px) {
+      .container { max-width: 98vw; padding: 1.2rem 0.5rem 1rem 0.5rem; }
+      .dashboard-section, .analytics-section, .alarm-section { padding: 0.7em 0.2em; }
+    }
+    .session-list li { opacity: 0; animation: fadeIn 0.5s forwards; }
+    .session-list li:nth-child(n) { animation-delay: 0.05s; }
+    .session-list li:nth-child(2) { animation-delay: 0.1s; }
+    .session-list li:nth-child(3) { animation-delay: 0.15s; }
+    .session-list li:nth-child(4) { animation-delay: 0.2s; }
+    .session-list li:nth-child(5) { animation-delay: 0.25s; }
+    .session-list li:nth-child(6) { animation-delay: 0.3s; }
+    .session-list li:nth-child(7) { animation-delay: 0.35s; }
+    .session-list li:nth-child(8) { animation-delay: 0.4s; }
+    .session-list li:nth-child(9) { animation-delay: 0.45s; }
+    .session-list li:nth-child(10) { animation-delay: 0.5s; }
+  </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="card" role="application" aria-label="Smart Screen Time Manager">
-        <div class="left">
-            <h1>Smart Screen Time Manager</h1>
-            <p class="lead">Track and manage daily screen time. Auto pauses on inactivity. Runs accurately even if tab is inactive.</p>
-
-            <div id="auth-area">
-                <div id="login" class="form">
-                    <input id="login-username" placeholder="Username" />
-                    <input id="login-password" placeholder="Password" type="password" />
-                    <div class="row">
-                        <button id="btn-login" class="btn">Log in</button>
-                        <button id="btn-show-register" class="btn ghost">Register</button>
-                    </div>
-                    <div class="small muted">Demo auth stored locally (private device only).</div>
-                </div>
-
-                <div id="register" class="form" style="display:none">
-                    <input id="reg-username" placeholder="Choose username (min 3 chars)" minlength="3" />
-                    <input id="reg-email" placeholder="Email address" type="email" required />
-                    <input id="reg-age" placeholder="Age" type="number" min="1" required />
-                    <input id="reg-password" placeholder="Choose password (min 8 chars)" type="password" minlength="8" />
-                    <div class="row">
-                        <button id="btn-register" class="btn">Create account</button>
-                        <button id="btn-show-login" class="btn ghost">Back</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="app" style="display:none">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <div id="greeting" style="font-weight:600">Hello</div>
-                        <div class="small muted" id="current-limit-label">Limit: —</div>
-                    </div>
-                    <div style="text-align:right">
-                        <div class="small muted">Signed in as</div>
-                        <div id="user-name" style="font-weight:700"></div>
-                        <div style="margin-top:8px"><button id="btn-logout" class="btn ghost">Logout</button></div>
-                    </div>
-                </div>
-
-                <hr style="margin:14px 0;border:none;border-top:1px solid rgba(10,20,40,.06)">
-
-                <div class="timer" id="time-display">00:00:00</div>
-                <div class="small muted" id="elapsed-label">Elapsed: 00:00:00</div>
-
-                <div style="margin-top:12px" class="controls">
-                    <button id="btn-start" class="btn">Start</button>
-                    <button id="btn-pause" class="btn ghost">Pause</button>
-                    <button id="btn-reset" class="btn ghost">Reset</button>
-                    <div style="margin-left:auto" class="small muted">Status: <span id="status">Stopped</span></div>
-                </div>
-
-                <div style="margin-top:14px" class="dash">
-                    <div class="form" style="margin:0">
-                        <div class="row">
-                            <label class="small muted" style="align-self:center">Daily limit (minutes)</label>
-                            <input id="limit-minutes" class="limit-input" type="number" min="1" value="60"/>
-                            <label class="small muted" style="align-self:center">Inactivity pause (s)</label>
-                            <input id="inactivity-s" class="limit-input" type="number" min="5" value="60"/>
-                            <button id="btn-save-settings" class="btn ghost">Save</button>
-                        </div>
-                    </div>
-
-                    <div id="notice" class="notice" style="display:none"></div>
-
-                    <div>
-                        <div class="small muted">Today's total</div>
-                        <div id="today-total" style="font-weight:700">00:00:00</div>
-                    </div>
-
-                    <div>
-                        <div class="small muted">Last 7 days</div>
-                        <div class="day-list" id="day-list"></div>
-                    </div>
-
-                    <!-- Single chart with controls -->
-                    <div style="margin-top:8px">
-                        <div class="small muted">Usage overview</div>
-                        <div style="display:flex;gap:8px;align-items:center;margin:8px 0">
-                            <label class="small muted" for="period-select">Period</label>
-                            <select id="period-select" style="padding:8px;border-radius:8px">
-                                <option value="day" selected>Day</option>
-                                <option value="week">Week</option>
-                                <option value="month">Month</option>
-                                <option value="year">Year</option>
-                            </select>
-                            <label class="small muted" for="duration-number">Show last</label>
-                            <input id="duration-number" type="number" min="1" value="30" style="width:80px;padding:8px;border-radius:8px" />
-                            <button id="btn-refresh-chart" class="btn ghost" style="margin-left:auto">Refresh</button>
-                        </div>
-                        <div class="chart-card">
-                            <div class="chart-card-title">
-                                <span>Screen Time Trends</span>
-                            </div>
-                            <div style="flex:1;min-height:180px;">
-                                <canvas id="chart-main" aria-label="Usage chart" role="img"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="right">
-            <div style="display:flex;flex-direction:column;gap:10px">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                    <div>
-                        <div class="small muted">Overview</div>
-                        <div style="font-weight:700">Stay focused. Build healthy screen habits.</div>
-                    </div>
-                    <div style="text-align:right">
-                        <div class="small muted">Today</div>
-                        <div id="side-today" style="font-weight:700">00:00:00</div>
-                    </div>
-                </div>
-
-                <div class="stat">
-                    <div>
-                        <div class="small muted">Active session</div>
-                        <div id="session-display" style="font-weight:700">0s</div>
-                    </div>
-                    <div>
-                        <div class="small muted">Limit</div>
-                        <div id="side-limit" style="font-weight:700">—</div>
-                    </div>
-                </div>
-
-                <div class="stat">
-                    <div>
-                        <div class="small muted">Auto-pause after</div>
-                        <div id="side-inactivity" style="font-weight:700">—</div>
-                    </div>
-                    <div>
-                        <div class="small muted">Status</div>
-                        <div id="side-status" style="font-weight:700">Idle</div>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="small muted">Quick tips</div>
-                    <ul style="margin:8px 0;padding-left:18px;color:var(--muted)">
-                        <li>Set a daily limit and let the timer enforce breaks.</li>
-                        <li>Timer computes time using timestamps — accurate when tab inactive.</li>
-                        <li>Auto-pause prevents counting when you're away.</li>
-                    </ul>
-                </div>
-
-                <footer>
-                    Built with privacy: data stored locally. For multi-user or server storage, integrate a backend.
-                </footer>
-            </div>
-        </div>
+  <!-- Auth overlay (sign in / signup) -->
+  <div id="authOverlay" class="auth-overlay" aria-hidden="true">
+    <div class="auth-card" id="signInCard" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <h3 id="authTitle" style="margin:0;">Sign in to Digital Well Being</h3>
+      <input id="authEmail" type="email" placeholder="Email" autocomplete="username" />
+      <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="authSignIn" type="button">Sign in</button>
+      <button class="link-btn" id="showSignup" type="button">Create account</button>
+      <button id="authDemo" type="button" style="background:#f0f4f9;color:var(--primary);border:none;border-radius:8px;">Demo</button>
+      <p style="margin:0;font-size:.85rem;color:#666;">This demo stores accounts in localStorage. Not secure for production.</p>
     </div>
-</div>
+    <div class="auth-card" id="signUpCard" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
+      <h3 id="signupTitle" style="margin:0;">Create Account</h3>
+      <input id="signupEmail" type="email" placeholder="Email" autocomplete="username" />
+      <input id="signupPassword" type="password" placeholder="Password" autocomplete="new-password" />
+      <button id="signupBtn" type="button">Create account</button>
+      <button class="link-btn" id="showSignIn" type="button">Back to sign in</button>
+      <p style="margin:0;font-size:.85rem;color:#666;">This demo stores accounts in localStorage. Not secure for production.</p>
+    </div>
+  </div>
 
-<!-- Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Logout button -->
+  <button id="logoutBtn" type="button">Log out</button>
 
-<script>
-// ...existing JS code remains unchanged...
-// (Paste your previous JS code here, no changes needed for the chart style)
-const qs = sel => document.querySelector(sel);
-const qsa = sel => Array.from(document.querySelectorAll(sel));
-const fmt = ms => {
-    const s = Math.max(0, Math.floor(ms/1000));
-    const hh = String(Math.floor(s/3600)).padStart(2,'0');
-    const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
-    const ss = String(s%60).padStart(2,'0');
-    return hh+':'+mm+':'+ss;
-};
-const todayKey = d => d.toISOString().slice(0,10);
+  <!-- Dark Mode Toggle Button -->
+  <button class="dark-toggle" id="darkToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+    <svg id="darkIcon" viewBox="0 0 24 24">
+      <path d="M12 3a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1zm6.364 2.636a1 1 0 0 1 1.414 1.414l-.707.707a1 1 0 1 1-1.414-1.414l.707-.707zM21 11a1 1 0 1 1 0 2h-1a1 1 0 1 1 0-2h1zm-2.636 6.364a1 1 0 0 1-1.414 1.414l-.707-.707a1 1 0 1 1 1.414-1.414l.707.707zM12 19a1 1 0 0 1-1-1v-1a1 1 0 1 1 2 0v1a1 1 0 0 1-1 1zm-6.364-2.636a1 1 0 0 1-1.414-1.414l.707-.707a1 1 0 1 1 1.414 1.414l-.707.707zM3 13a1 1 0 1 1 0-2h1a1 1 0 1 1 0 2H3zm2.636-6.364a1 1 0 0 1 1.414-1.414l.707.707A1 1 0 1 1 6.05 7.05l-.707-.707z"/>
+    </svg>
+  </button>
 
-const storage = {
-    getUsers(){ return JSON.parse(localStorage.getItem('sstm_users')||'{}') },
-    saveUsers(u){ localStorage.setItem('sstm_users', JSON.stringify(u)) },
-    getCurrent(){ return localStorage.getItem('sstm_current') },
-    setCurrent(u){ localStorage.setItem('sstm_current', u) },
-    clearCurrent(){ localStorage.removeItem('sstm_current') },
-    getUserData(user){ return JSON.parse(localStorage.getItem('sstm_data_'+user) || '{}') },
-    saveUserData(user,data){ localStorage.setItem('sstm_data_'+user, JSON.stringify(data)) }
-};
+  <div class="container" id="mainContainer">
+    <h1>Digital Well Being</h1>
+    <!-- Timer Section -->
+    <div class="timer-section">
+      <div class="timer-display" id="timerDisplay">00:00:00</div>
+      <div class="timer-controls">
+        <button id="startBtn" type="button">Start</button>
+        <button id="pauseBtn" type="button" disabled>Pause</button>
+        <button id="resumeBtn" type="button" disabled>Resume</button>
+        <button id="resetBtn" type="button" disabled>Reset</button>
+      </div>
+    </div>
+    <!-- Multiple Alarms Section -->
+    <div class="alarm-section">
+      <div class="alarm-title">
+        <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path fill="#4f8cff" d="M12 22a2 2 0 0 1-2-2h4a2 2 0 0 1-2 2Zm6-6V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2Zm-8 0V11a4 4 0 1 1 8 0v5H6Z"/></svg>
+        Alarm Settings
+      </div>
+      <form id="alarmForm" autocomplete="off" style="margin-bottom:1em;">
+        <label>
+          After
+          <input type="number" id="alarmHours" min="0" max="23" value="0" style="width:3em;"> h
+          <input type="number" id="alarmMinutes" min="1" max="59" value="30" required> min
+        </label>
+        <label>
+          Label
+          <input type="text" id="alarmLabel" maxlength="32" value="Take a break" required>
+        </label>
+        <label>
+          Tone
+          <select id="alarmTone">
+            <option value="alarm-327234.mp3">Gentle Chime</option>
+            <option value="notification-bell-sound-376888.mp3">Soft Bell</option>
+            <option value="nature.mp3">Nature Sound</option>
+            <option value="alarm.mp3">Default</option>
+            <option value="custom">Upload MP3...</option>
+          </select>
+          <input type="file" id="customAlarmFile" accept="audio/mp3,audio/mpeg" style="display:none;">
+        </label>
+        <button type="submit" style="margin-top:0.5em;">Add Alarm</button>
+      </form>
+      <ul id="alarmsList" style="margin:0;padding:0;list-style:none;"></ul>
+    </div>
+    <!-- Session History Section -->
+    <div class="analytics-section">
+      <h2>Session History</h2>
+      <ul class="session-list" id="sessionList"></ul>
+    </div>
+    <!-- Analytics Dashboard Section -->
+    <div class="dashboard-section">
+      <h2>Analytics Dashboard</h2>
+      <canvas id="chart" height="120"></canvas>
+    </div>
+  </div>
 
-let state = {
-    user:null,
-    running:false,
-    startAt:0,
-    pausedElapsed:0, // ms
-    lastActivity: Date.now(),
-    inactivityThreshold:60000,
-    limitMs:3600000, // default 60 minutes
-    alarmPlaying:false,
-    tickTimer:null,
-    charts:{}
-};
+  <footer>
+    &copy; 2025 Digital Well Being , Designed for the Management
+  </footer>
 
-function showEl(id){ qs(id).style.display='block'; }
-function hideEl(id){ qs(id).style.display='none'; }
+  <audio id="alarmAudio" preload="auto" src="alarm-327234.mp3"></audio>
 
-function loadSettings(){
-    const data = storage.getUserData(state.user) || {};
-    state.limitMs = (data.limitMinutes ? data.limitMinutes*60000 : 60*60000);
-    state.inactivityThreshold = (data.inactivitySeconds ? data.inactivitySeconds*1000 : 60000);
-    qs('#limit-minutes').value = Math.max(1, Math.round(state.limitMs/60000));
-    qs('#inactivity-s').value = Math.max(5, Math.round(state.inactivityThreshold/1000));
-    updateSide();
-}
-
-function saveSettings(){
-    const data = storage.getUserData(state.user) || {};
-    const lm = Math.max(1, Number(qs('#limit-minutes').value || 60));
-    const isec = Math.max(5, Number(qs('#inactivity-s').value || 60));
-    data.limitMinutes = lm;
-    data.inactivitySeconds = isec;
-    storage.saveUserData(state.user, data);
-    state.limitMs = lm*60000;
-    state.inactivityThreshold = isec*1000;
-    showNotice('Settings saved');
-    updateSide();
-}
-
-function showNotice(text, time=2500){
-    const el = qs('#notice'); el.textContent = text; el.style.display='block';
-    clearTimeout(el._t); el._t = setTimeout(()=>el.style.display='none', time);
-}
-
-function setStatus(text){
-    qs('#status').textContent = text;
-    qs('#side-status').textContent = text;
-}
-
-function registerHandlers(){
-    qs('#btn-show-register').onclick = ()=>{ hideEl('#login'); showEl('#register'); }
-    qs('#btn-show-login').onclick = ()=>{ showEl('#login'); hideEl('#register'); }
-    qs('#btn-register').onclick = () => {
-        const u = qs('#reg-username').value.trim();
-        const e = qs('#reg-email').value.trim();
-        const a = qs('#reg-age').value.trim();
-        const p = qs('#reg-password').value || '';
-        if(!u || !e || !a || !p){ showNotice('Enter username, email, age and password'); return; }
-        if(u.length < 3){ showNotice('Username must be at least 3 characters'); return; }
-        if(!/^[^@]+@[^@]+\.[^@]+$/.test(e)){ showNotice('Enter a valid email'); return; }
-        if(Number(a) < 1){ showNotice('Enter a valid age'); return; }
-        if(p.length < 8){ showNotice('Password must be at least 8 characters'); return; }
-        const users = storage.getUsers();
-        if(users[u]){ showNotice('User exists'); return; }
-        users[u] = {password:p, email:e, age:a};
-        storage.saveUsers(users);
-        storage.setCurrent(u);
-        showNotice('Account created!');
-        initAfterAuth(u);
+  <script>
+    // --- Timer State ---
+    let timer = {
+      startTime: null,
+      elapsed: 0,
+      running: false,
+      intervalId: null,
+      sessionStart: null,
+      sessionEnd: null
     };
-    qs('#btn-login').onclick = () => {
-        const u = qs('#login-username').value.trim();
-        const p = qs('#login-password').value || '';
-        const users = storage.getUsers();
-        if(!users[u] || users[u].password !== p){ showNotice('Invalid credentials'); return; }
-        storage.setCurrent(u);
-        initAfterAuth(u);
-    };
-    qs('#btn-logout').onclick = ()=>{ storage.clearCurrent(); location.reload(); }
 
-    qs('#btn-start').onclick = startTimer;
-    qs('#btn-pause').onclick = pauseTimer;
-    qs('#btn-reset').onclick = resetTimer;
-    qs('#btn-save-settings').onclick = saveSettings;
+    // --- Multiple Alarms State ---
+    let alarms = [];
+    let editingAlarmId = null;
+    let alarmInterval = null;
 
-    // activity detection
-    ['mousemove','keydown','mousedown','touchstart','scroll'].forEach(e=>{
-        window.addEventListener(e, ()=> state.lastActivity = Date.now(), {passive:true});
-    });
+    // --- DOM Elements ---
+    const timerDisplay = document.getElementById('timerDisplay');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const sessionList = document.getElementById('sessionList');
+    const darkToggle = document.getElementById('darkToggle');
+    const darkIcon = document.getElementById('darkIcon');
+    const chartCanvas = document.getElementById('chart');
+    const alarmForm = document.getElementById('alarmForm');
+    const alarmHours = document.getElementById('alarmHours');
+    const alarmMinutes = document.getElementById('alarmMinutes');
+    const alarmLabel = document.getElementById('alarmLabel');
+    const alarmTone = document.getElementById('alarmTone');
+    const customAlarmFile = document.getElementById('customAlarmFile');
+    const alarmsList = document.getElementById('alarmsList');
+    const alarmAudio = document.getElementById('alarmAudio');
 
-    // visibility to update UI
-    document.addEventListener('visibilitychange', ()=> updateUI(true));
-}
+    const authOverlay = document.getElementById('authOverlay');
+    const signInCard = document.getElementById('signInCard');
+    const signUpCard = document.getElementById('signUpCard');
+    const authSignIn = document.getElementById('authSignIn');
+    const authDemo = document.getElementById('authDemo');
+    const authEmail = document.getElementById('authEmail');
+    const authPassword = document.getElementById('authPassword');
+    const showSignup = document.getElementById('showSignup');
+    const showSignIn = document.getElementById('showSignIn');
+    const signupEmail = document.getElementById('signupEmail');
+    const signupPassword = document.getElementById('signupPassword');
+    const signupBtn = document.getElementById('signupBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const mainContainer = document.getElementById('mainContainer');
 
-function initAfterAuth(user){
-    state.user = user;
-    hideEl('#auth-area');
-    showEl('#app');
-    qs('#user-name').textContent = user;
-    qs('#greeting').textContent = 'Welcome, '+user;
-    loadSettings();
-    loadDailyOverview();
-    startTicker();
-    setStatus('Stopped');
-    updateUI(true);
-}
+    // --- LocalStorage Keys ---
+    const SESSIONS_KEY = 'digitalWellBeingSessions';
+    const ALARMS_KEY = 'digitalWellBeingAlarms';
+    const DARK_KEY = 'digitalWellBeingDark';
+    const USERS_KEY = 'digitalWellBeingUsers';
+    const SIGNED_KEY = 'dwb_signed_in';
+    const SIGNED_EMAIL = 'dwb_user_email';
 
-function loadDailyOverview(){
-    const data = storage.getUserData(state.user) || {};
-    const totals = data.totals || {};
-    const today = todayKey(new Date());
-    if(!(today in totals)) totals[today] = 0;
-    data.totals = totals;
-    storage.saveUserData(state.user, data);
-    renderDayList();
-}
-
-function renderDayList(){
-    const data = storage.getUserData(state.user) || {};
-    const totals = data.totals || {};
-    const list = qs('#day-list'); list.innerHTML = '';
-    const days = [];
-    for(let i=0;i<7;i++){
-        const d = new Date(); d.setDate(d.getDate()-i);
-        const k = todayKey(d);
-        days.push({k, v:totals[k] || 0, label:d.toLocaleDateString()});
+    // --- Utility: Format seconds as HH:MM:SS ---
+    function formatTime(sec) {
+      const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+      const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${h}:${m}:${s}`;
     }
-    days.forEach(d=>{
-        const el = document.createElement('div');
-        el.className = 'day-item';
-        el.innerHTML = `<div class="small muted">${d.label}</div><div style="font-weight:700">${fmt(d.v)}</div>`;
-        list.appendChild(el);
-    });
-    qs('#today-total').textContent = fmt((storage.getUserData(state.user).totals || {})[todayKey(new Date())] || 0);
-    qs('#side-today').textContent = qs('#today-total').textContent;
-    qs('#side-limit').textContent = Math.round(state.limitMs/60000)+' min';
-    qs('#side-inactivity').textContent = Math.round(state.inactivityThreshold/1000)+' s';
-    updateCharts();
-}
 
-function accumulateToToday(ms){
-    const data = storage.getUserData(state.user) || {};
-    data.totals = data.totals || {};
-    const k = todayKey(new Date());
-    data.totals[k] = (data.totals[k] || 0) + ms;
-    storage.saveUserData(state.user, data);
-    renderDayList();
-}
-
-function startTimer(){
-    if(state.running) return;
-    state.running = true;
-    state.startAt = Date.now();
-    setStatus('Running');
-    qs('#btn-start').disabled = true;
-    qs('#btn-pause').disabled = false;
-    qs('#btn-reset').disabled = false;
-}
-
-function pauseTimer(auto=false){
-    if(!state.running) return;
-    const delta = Date.now() - state.startAt;
-    state.pausedElapsed += delta;
-    state.running = false;
-    state.startAt = 0;
-    setStatus(auto ? 'Paused (inactive)' : 'Paused');
-    qs('#btn-start').disabled = false;
-    qs('#btn-pause').disabled = true;
-    accumulateToToday(delta);
-    updateUI(true);
-}
-
-function resetTimer(){
-    if(state.running){
-        const delta = Date.now() - state.startAt;
-        accumulateToToday(delta);
+    // --- Timer Functions ---
+    function updateTimerDisplay() { timerDisplay.textContent = formatTime(timer.elapsed); }
+    function tick() {
+      if (timer.running) {
+        const now = Date.now();
+        timer.elapsed = Math.floor((now - timer.startTime) / 1000);
+        updateTimerDisplay();
+        checkAlarms();
+      }
     }
-    state.running = false;
-    state.startAt = 0;
-    state.pausedElapsed = 0;
-    setStatus('Stopped');
-    qs('#btn-start').disabled = false;
-    qs('#btn-pause').disabled = true;
-    renderDayList();
-    updateUI(true);
-}
-
-function startTicker(){
-    if(state.tickTimer) clearInterval(state.tickTimer);
-    state.tickTimer = setInterval(tick, 700);
-    tick();
-}
-
-function tick(){
-    if(state.running && (Date.now() - state.lastActivity) > state.inactivityThreshold){
-        pauseTimer(true);
-        showNotice('Paused due to inactivity');
+    function startTimer() {
+      timer.startTime = Date.now();
+      timer.sessionStart = new Date();
+      timer.elapsed = 0;
+      timer.running = true;
+      timer.intervalId = setInterval(tick, 1000);
+      updateTimerDisplay();
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      resumeBtn.disabled = true;
+      resetBtn.disabled = false;
+      alarms.forEach(a => a.triggered = false);
     }
-    const elapsed = state.pausedElapsed + (state.running ? (Date.now() - state.startAt) : 0);
-    const remaining = Math.max(0, state.limitMs - elapsed);
-    qs('#elapsed-label').textContent = 'Elapsed: ' + fmt(elapsed);
-    qs('#time-display').textContent = fmt(remaining);
-    qs('#session-display').textContent = Math.floor(elapsed/1000) + 's';
-    qs('#side-today').textContent = fmt((storage.getUserData(state.user).totals || {})[todayKey(new Date())] || 0);
-    qs('#side-today').textContent = qs('#today-total').textContent = fmt((storage.getUserData(state.user).totals || {})[todayKey(new Date())] || 0);
-    if(state.running && elapsed >= state.limitMs){
-        const overshoot = elapsed - state.limitMs;
-        const sessionCounted = (state.running ? (Date.now() - state.startAt) : 0) - overshoot;
-        if(sessionCounted > 0) accumulateToToday(sessionCounted);
-        state.running = false;
-        state.startAt = 0;
-        state.pausedElapsed = state.limitMs;
-        setStatus('Limit reached');
-        qs('#btn-start').disabled = true;
-        qs('#btn-pause').disabled = true;
-        playAlarm();
-        alert('Screen-time limit reached for today.');
+    function pauseTimer() {
+      if (!timer.running) return;
+      clearInterval(timer.intervalId);
+      timer.running = false;
+      timer.elapsed = Math.floor((Date.now() - timer.startTime) / 1000);
+      updateTimerDisplay();
+      startBtn.disabled = true;
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = false;
+      resetBtn.disabled = false;
     }
-}
-
-function updateUI(force){
-    qs('#current-limit-label').textContent = 'Limit: ' + Math.round(state.limitMs/60000) + ' min';
-    qs('#side-limit').textContent = Math.round(state.limitMs/60000) + ' min';
-    qs('#side-inactivity').textContent = Math.round(state.inactivityThreshold/1000) + ' s';
-    qs('#btn-pause').disabled = !state.running;
-    qs('#btn-start').disabled = state.running || state.pausedElapsed >= state.limitMs;
-    qs('#btn-reset').disabled = (state.running === false && state.pausedElapsed===0);
-    tick();
-}
-
-function updateSide(){ qs('#side-limit').textContent = Math.round(state.limitMs/60000)+' min'; qs('#side-inactivity').textContent = Math.round(state.inactivityThreshold/1000)+' s'; }
-
-function playAlarm(){
-    if(state.alarmPlaying) return;
-    state.alarmPlaying = true;
-    try{
-        const ac = new (window.AudioContext || window.webkitAudioContext)();
-        const o = ac.createOscillator();
-        const g = ac.createGain();
-        o.type = 'sine';
-        o.frequency.value = 880;
-        g.gain.value = 0.0001;
-        o.connect(g); g.connect(ac.destination);
-        o.start();
-        g.gain.exponentialRampToValueAtTime(0.2, ac.currentTime + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 2.0);
-        setTimeout(()=>{ o.stop(); ac.close(); state.alarmPlaying = false; }, 2100);
-    }catch(e){
-        state.alarmPlaying = false;
+    function resumeTimer() {
+      timer.startTime = Date.now() - timer.elapsed * 1000;
+      timer.running = true;
+      timer.intervalId = setInterval(tick, 1000);
+      updateTimerDisplay();
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      resumeBtn.disabled = true;
+      resetBtn.disabled = false;
     }
-}
-
-/* ----------- Single Chart with Period/Duration Controls ----------- */
-
-function msToMinutes(ms){ return +(ms/60000).toFixed(2); }
-
-function getTotalsMap(){
-    return (storage.getUserData(state.user).totals) || {};
-}
-
-function lastNDatesArray(n){
-    const arr = [];
-    for(let i=n-1;i>=0;i--){
-        const d = new Date(); d.setDate(d.getDate()-i);
-        arr.push(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+    function resetTimer() {
+      if (timer.running) clearInterval(timer.intervalId);
+      if (timer.elapsed > 0) {
+        timer.sessionEnd = new Date();
+        saveSession(timer.elapsed, timer.sessionStart, timer.sessionEnd);
+      }
+      timer.startTime = null;
+      timer.elapsed = 0;
+      timer.running = false;
+      timer.sessionStart = null;
+      timer.sessionEnd = null;
+      updateTimerDisplay();
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = true;
+      resetBtn.disabled = true;
+      alarms.forEach(a => a.triggered = false);
+      hideCaution();
     }
-    return arr;
-}
 
-function startOfWeek(dt){
-    const d = new Date(dt);
-    const day = d.getDay();
-    const diff = (day + 6) % 7;
-    d.setDate(d.getDate() - diff);
-    d.setHours(0,0,0,0);
-    return d;
-}
-
-function computeAggregate(period, length){
-    const totals = getTotalsMap();
-    if(period === 'day'){
-        const dates = lastNDatesArray(length);
-        return {
-            labels: dates.map(d => d.toLocaleDateString()),
-            data: dates.map(d => msToMinutes(totals[todayKey(d)] || 0))
-        };
-    }
-    if(period === 'week'){
-        const labels = [], data = [];
-        const now = new Date();
-        for(let i=length-1;i>=0;i--){
-            const base = new Date();
-            base.setDate(now.getDate() - i*7);
-            const s = startOfWeek(base);
-            let sum = 0;
-            for(let j=0;j<7;j++){
-                const d = new Date(s); d.setDate(s.getDate()+j);
-                sum += totals[todayKey(d)] || 0;
-            }
-            labels.push('W ' + s.toLocaleDateString());
-            data.push(msToMinutes(sum));
+    // --- Multiple Alarms Logic ---
+    function checkAlarms() {
+      for (const alarm of alarms) {
+        const alarmSeconds = (parseInt(alarm.hours) * 3600) + (parseInt(alarm.minutes) * 60);
+        if (!alarm.triggered && timer.elapsed === alarmSeconds) {
+          alarm.triggered = true;
+          showCaution(alarm);
+          playAlarm(alarm);
+          break;
         }
-        return {labels, data};
+      }
     }
-    if(period === 'month'){
-        const labels = [], data = [];
-        const now = new Date();
-        for(let i=length-1;i>=0;i--){
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const next = new Date(d.getFullYear(), d.getMonth()+1, 1);
-            let sum = 0;
-            for(let day = new Date(d); day < next; day.setDate(day.getDate()+1)){
-                sum += totals[todayKey(day)] || 0;
-            }
-            labels.push(d.toLocaleString(undefined, {month:'short', year:'numeric'}));
-            data.push(msToMinutes(sum));
-        }
-        return {labels, data};
+    function playAlarm(alarm) {
+      if (alarm.tone === "custom" && alarm.customSrc) {
+        alarmAudio.src = alarm.customSrc;
+      } else if (
+        alarm.tone === "alarm-327234.mp3" ||
+        alarm.tone === "notification-bell-sound-376888.mp3" ||
+        alarm.tone === "nature.mp3" ||
+        alarm.tone === "alarm.mp3"
+      ) {
+        alarmAudio.src = alarm.tone;
+      } else {
+        alarmAudio.src = "alarm-327234.mp3";
+      }
+      alarmAudio.currentTime = 0;
+      alarmAudio.volume = 1.0;
+      alarmAudio.play().catch(()=>{});
+      if (alarmInterval) clearInterval(alarmInterval);
+      alarmInterval = setInterval(() => {
+        alarmAudio.currentTime = 0;
+        alarmAudio.play().catch(()=>{});
+      }, 3000);
+      showNotification(alarm.label || "Alarm", "Your alarm time is up!");
     }
-    if(period === 'year'){
-        const labels = [], data = [];
-        const now = new Date();
-        for(let i=length-1;i>=0;i--){
-            const y = now.getFullYear() - i;
-            let sum = 0;
-            for(let m=0;m<12;m++){
-                const start = new Date(y, m, 1);
-                const next = new Date(y, m+1, 1);
-                for(let day = new Date(start); day < next; day.setDate(day.getDate()+1)){
-                    sum += totals[todayKey(day)] || 0;
-                }
-            }
-            labels.push(String(y));
-            data.push(msToMinutes(sum));
-        }
-        return {labels, data};
+    function stopAlarm() {
+      alarmAudio.pause();
+      alarmAudio.currentTime = 0;
+      if (alarmInterval) {
+        clearInterval(alarmInterval);
+        alarmInterval = null;
+      }
     }
-    return {labels:[], data:[]};
-}
+    function snoozeAlarm(alarm) {
+      stopAlarm();
+      hideCaution();
+      alarm.triggered = false;
+      const totalSec = timer.elapsed + 5 * 60;
+      alarm.hours = Math.floor(totalSec / 3600);
+      alarm.minutes = Math.floor((totalSec % 3600) / 60);
+      saveAlarms();
+      renderAlarms();
+    }
 
-function createOrUpdateMainChart(cfg){
-    const id = 'chart-main';
-    const el = qs('#'+id);
-    if(!el) return;
-    if(state.charts[id]){
-        state.charts[id].data.labels = cfg.labels;
-        state.charts[id].data.datasets[0].data = cfg.data;
-        state.charts[id].options.scales.y.title.text = cfg.yTitle || 'Minutes';
-        state.charts[id].update();
+    // --- Caution Popup ---
+    function showCaution(alarm) {
+      if (document.getElementById('cautionPopup')) return;
+      const popup = document.createElement('div');
+      popup.className = 'caution-popup';
+      popup.id = 'cautionPopup';
+      let timeStr = '';
+      if (alarm.hours && alarm.hours > 0) timeStr += `${alarm.hours}h `;
+      timeStr += `${alarm.minutes}min`;
+      popup.innerHTML = `
+        <div class="caution-content">
+          <h2>⏰ ${alarm.label || "Time's Up!"}</h2>
+          <p>You have reached your alarm: <b>${alarm.label}</b> (${timeStr})</p>
+          <div style="display:flex;justify-content:center;gap:.6rem;">
+            <button id="dismissAlarmBtn">Dismiss</button>
+            <button id="snoozeAlarmBtn" style="background:#f0f4f9;color:var(--primary);border:1px solid rgba(79,140,255,0.14);">Snooze 5 min</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(popup);
+      document.getElementById('dismissAlarmBtn').onclick = () => { stopAlarm(); hideCaution(); };
+      document.getElementById('snoozeAlarmBtn').onclick = () => { snoozeAlarm(alarm); };
+    }
+    function hideCaution() {
+      const popup = document.getElementById('cautionPopup');
+      if (popup) popup.remove();
+    }
+
+    // --- Notification API ---
+    function showNotification(title, body) {
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "granted") {
+        new Notification(title, { body });
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") new Notification(title, { body });
+        });
+      }
+    }
+
+    // --- Session Storage ---
+    function getSessions() {
+      const data = localStorage.getItem(SESSIONS_KEY);
+      if (!data) return [];
+      try { return JSON.parse(data); } catch { return []; }
+    }
+    function setSessions(sessions) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions)); }
+    function saveSession(duration, startDate, endDate) {
+      if (duration < 1) return;
+      const sessions = getSessions();
+      sessions.unshift({
+        start: startDate ? startDate.toISOString() : null,
+        end: endDate ? endDate.toISOString() : null,
+        duration
+      });
+      setSessions(sessions);
+      renderSessions();
+      renderChart();
+    }
+
+    // --- Render Session List ---
+    function renderSessions() {
+      const sessions = getSessions();
+      sessionList.innerHTML = '';
+      if (sessions.length === 0) {
+        sessionList.innerHTML = '<li style="text-align:center;color:#aaa;">No sessions yet.</li>';
         return;
+      }
+      sessions.slice(0, 10).forEach(session => {
+        const start = session.start ? new Date(session.start) : null;
+        const end = session.end ? new Date(session.end) : null;
+        let dateStr = '';
+        if (start && end) {
+          dateStr = `${start.toLocaleDateString()} ${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        } else if (start) {
+          dateStr = `${start.toLocaleDateString()} ${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        }
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span class="session-date">${dateStr}</span>
+          <span class="session-duration">${formatTime(session.duration)}</span>
+        `;
+        sessionList.appendChild(li);
+      });
     }
-    const ctx = el.getContext('2d');
-    state.charts[id] = new Chart(ctx, {
-        type: cfg.type || 'line',
+
+    // --- Chart.js Analytics Dashboard ---
+    let chartInstance = null;
+    function renderChart() {
+      const sessions = getSessions();
+      const dailyTotals = {};
+      sessions.forEach(s => {
+        const day = s.start ? s.start.slice(0,10) : (s.date ? s.date.slice(0,10) : "");
+        if (!day) return;
+        dailyTotals[day] = (dailyTotals[day] || 0) + s.duration;
+      });
+      const labels = Object.keys(dailyTotals).reverse().slice(-7);
+      const data = labels.map(day => Math.round(dailyTotals[day] / 60));
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(chartCanvas, {
+        type: 'bar',
         data: {
-            labels: cfg.labels,
-            datasets: [{
-                label: cfg.datasetLabel || 'Minutes',
-                data: cfg.data,
-                backgroundColor: cfg.backgroundColor || 'rgba(58,123,213,0.35)',
-                borderColor: cfg.borderColor || 'rgba(58,123,213,1)',
-                borderWidth: 2,
-                fill: cfg.fill ?? true,
-                tension: 0.2,
-                pointRadius: 2
-            }]
+          labels: labels.map(d => d.slice(5)),
+          datasets: [{
+            label: 'Total Screen Time (min)',
+            data,
+            backgroundColor: 'rgba(79,140,255,0.7)',
+            borderRadius: 6,
+            maxBarThickness: 32
+          }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true, title: {display:true, text: cfg.yTitle || 'Minutes'} }
-            },
-            plugins: { legend:{display:false} }
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} min` } }
+          },
+          scales: {
+            y: { beginAtZero: true, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text') } },
+            x: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text') } }
+          }
         }
-    });
-}
-
-function updateCharts(){
-    if(!state.user) return;
-    const period = qs('#period-select').value;
-    let length = parseInt(qs('#duration-number').value, 10) || 1;
-    length = Math.max(1, length);
-    if(period === 'day') length = Math.min(length, 365);
-    if(period === 'week') length = Math.min(length, 52);
-    if(period === 'month') length = Math.min(length, 36);
-    if(period === 'year') length = Math.min(length, 10);
-
-    const agg = computeAggregate(period, length);
-    const cfg = {
-        labels: agg.labels,
-        data: agg.data,
-        type: (period === 'day' ? 'line' : 'bar'),
-        datasetLabel: 'Minutes',
-        backgroundColor: 'rgba(58,123,213,0.35)',
-        borderColor: 'rgba(58,123,213,1)',
-        yTitle: 'Minutes'
-    };
-    createOrUpdateMainChart(cfg);
-}
-
-qs('#period-select').addEventListener('change', e=>{
-    const v = e.target.value;
-    if(v === 'day') qs('#duration-number').value = 30;
-    if(v === 'week') qs('#duration-number').value = 12;
-    if(v === 'month') qs('#duration-number').value = 12;
-    if(v === 'year') qs('#duration-number').value = 5;
-    updateCharts();
-});
-qs('#duration-number').addEventListener('input', ()=> updateCharts());
-qs('#btn-refresh-chart').addEventListener('click', ()=> updateCharts());
-
-(function(){
-    registerHandlers();
-    const cur = storage.getCurrent();
-    if(cur){
-        initAfterAuth(cur);
-    } else {
-        showEl('#login');
+      });
     }
-})();
-</script>
+
+    // --- Dark Mode ---
+    function setDarkMode(on) {
+      document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
+      localStorage.setItem(DARK_KEY, on ? '1' : '0');
+      darkIcon.innerHTML = on
+        ? `<path d="M21.64 13.64A9 9 0 1 1 10.36 2.36a7 7 0 1 0 11.28 11.28z"/>`
+        : `<path d="M12 3a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1zm6.364 2.636a1 1 0 0 1 1.414 1.414l-.707.707a1 1 0 1 1-1.414-1.414l.707-.707zM21 11a1 1 0 1 1 0 2h-1a1 1 0 1 1 0-2h1zm-2.636 6.364a1 1 0 0 1-1.414 1.414l-.707-.707a1 1 0 1 1 1.414-1.414l.707.707zM12 19a1 1 0 0 1-1-1v-1a1 1 0 1 1 2 0v1a1 1 0 0 1-1 1zm-6.364-2.636a1 1 0 0 1-1.414-1.414l.707-.707a1 1 0 1 1 1.414 1.414l-.707.707zM3 13a1 1 0 1 1 0-2h1a1 1 0 1 1 0 2H3zm2.636-6.364a1 1 0 0 1 1.414-1.414l.707.707A1 1 0 1 1 6.05 7.05l-.707-.707z"/>`;
+      renderChart();
+    }
+    function getDarkMode() { return localStorage.getItem(DARK_KEY) === '1'; }
+    darkToggle.onclick = () => setDarkMode(!getDarkMode());
+
+    // --- Alarms Storage ---
+    function saveAlarms() {
+      localStorage.setItem(ALARMS_KEY, JSON.stringify(alarms.map(a => ({
+        ...a,
+        customSrc: a.tone === "custom" ? a.customSrc : null
+      }))));
+    }
+    function loadAlarms() {
+      const data = localStorage.getItem(ALARMS_KEY);
+      if (!data) return [];
+      try {
+        const arr = JSON.parse(data);
+        arr.forEach(a => { a.triggered = false; if (!a.hasOwnProperty('hours')) a.hours = 0; });
+        return arr;
+      } catch { return []; }
+    }
+
+    // --- Render Alarms List ---
+    function renderAlarms() {
+      alarmsList.innerHTML = '';
+      if (alarms.length === 0) {
+        alarmsList.innerHTML = '<li style="color:#888;text-align:center;">No alarms set.</li>';
+        return;
+      }
+      alarms.forEach(alarm => {
+        const li = document.createElement('li');
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.style.justifyContent = 'space-between';
+        li.style.padding = '0.3em 0';
+        let timeStr = '';
+        if (alarm.hours && alarm.hours > 0) timeStr += `${alarm.hours}h `;
+        timeStr += `${alarm.minutes}min`;
+        li.innerHTML = `
+          <span>
+            <b>${alarm.label}</b> &mdash; ${timeStr}
+            ${alarm.tone === "custom" ? "🎵" : ""}
+            ${["alarm-327234.mp3","notification-bell-sound-376888.mp3","nature.mp3"].includes(alarm.tone) ? "🎶" : ""}
+          </span>
+          <span>
+            <button data-edit="${alarm.id}" style="margin-right:0.3em;">Edit</button>
+            <button data-delete="${alarm.id}">Delete</button>
+          </span>
+        `;
+        alarmsList.appendChild(li);
+      });
+      alarmsList.querySelectorAll('button[data-edit]').forEach(btn => {
+        btn.onclick = () => editAlarm(btn.getAttribute('data-edit'));
+      });
+      alarmsList.querySelectorAll('button[data-delete]').forEach(btn => {
+        btn.onclick = () => deleteAlarm(btn.getAttribute('data-delete'));
+      });
+    }
+
+    // --- Add/Edit/Delete Alarm ---
+    alarmForm.onsubmit = function(e) {
+      e.preventDefault();
+      const hours = parseInt(alarmHours.value) || 0;
+      const minutes = parseInt(alarmMinutes.value) || 0;
+      const label = alarmLabel.value.trim() || "Alarm";
+      let tone = alarmTone.value;
+      let customSrc = null;
+      if (tone === "custom" && customAlarmFile.files[0]) customSrc = URL.createObjectURL(customAlarmFile.files[0]);
+      if (editingAlarmId) {
+        const idx = alarms.findIndex(a => a.id === editingAlarmId);
+        if (idx !== -1) {
+          alarms[idx].hours = hours;
+          alarms[idx].minutes = minutes;
+          alarms[idx].label = label;
+          alarms[idx].tone = tone;
+          if (tone === "custom" && customSrc) {
+            alarms[idx].customSrc && URL.revokeObjectURL(alarms[idx].customSrc);
+            alarms[idx].customSrc = customSrc;
+          }
+        }
+        editingAlarmId = null;
+        alarmForm.querySelector('button[type="submit"]').textContent = "Add Alarm";
+      } else {
+        const id = Date.now().toString() + Math.random().toString(36).slice(2);
+        alarms.push({ id, hours, minutes, label, tone, customSrc, triggered: false });
+      }
+      alarmForm.reset();
+      alarmHours.value = 0;
+      customAlarmFile.style.display = "none";
+      renderAlarms();
+      saveAlarms();
+    };
+    function editAlarm(id) {
+      const alarm = alarms.find(a => a.id === id);
+      if (!alarm) return;
+      alarmHours.value = alarm.hours || 0;
+      alarmMinutes.value = alarm.minutes;
+      alarmLabel.value = alarm.label;
+      alarmTone.value = alarm.tone;
+      customAlarmFile.style.display = alarm.tone === "custom" ? "" : "none";
+      editingAlarmId = id;
+      alarmForm.querySelector('button[type="submit"]').textContent = "Save Alarm";
+    }
+    function deleteAlarm(id) {
+      const idx = alarms.findIndex(a => a.id === id);
+      if (idx !== -1) {
+        if (alarms[idx].customSrc) URL.revokeObjectURL(alarms[idx].customSrc);
+        alarms.splice(idx, 1);
+        renderAlarms();
+        saveAlarms();
+      }
+    }
+    alarmTone.onchange = function() { customAlarmFile.style.display = alarmTone.value === "custom" ? "" : "none"; };
+
+    // --- Timer Button Event Listeners ---
+    startBtn.onclick = startTimer;
+    pauseBtn.onclick = pauseTimer;
+    resumeBtn.onclick = resumeTimer;
+    resetBtn.onclick = resetTimer;
+
+    // --- Authentication (with signup) ---
+    function getUsers() {
+      try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); } catch { return []; }
+    }
+    function setUsers(users) {
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+    function isSignedIn() { return localStorage.getItem(SIGNED_KEY) === '1'; }
+    function setSignedIn(email) { localStorage.setItem(SIGNED_KEY, '1'); localStorage.setItem(SIGNED_EMAIL, email || ''); }
+    function clearSignedIn() { localStorage.removeItem(SIGNED_KEY); localStorage.removeItem(SIGNED_EMAIL); }
+
+    function showAuthOverlay(showSignup = false) {
+      authOverlay.style.display = 'flex';
+      authOverlay.setAttribute('aria-hidden', 'false');
+      mainContainer.style.filter = 'blur(2px) grayscale(.04)';
+      logoutBtn.style.display = 'none';
+      signInCard.style.display = showSignup ? 'none' : '';
+      signUpCard.style.display = showSignup ? '' : 'none';
+    }
+    function hideAuthOverlay() {
+      authOverlay.style.display = 'none';
+      authOverlay.setAttribute('aria-hidden', 'true');
+      mainContainer.style.filter = '';
+      logoutBtn.style.display = 'inline-block';
+    }
+
+    showSignup.onclick = () => showAuthOverlay(true);
+    showSignIn.onclick = () => showAuthOverlay(false);
+
+    authSignIn.addEventListener('click', () => {
+      const email = (authEmail.value || '').trim().toLowerCase();
+      const pass = (authPassword.value || '').trim();
+      if (!email || !pass) { alert('Enter email and password.'); return; }
+      const users = getUsers();
+      const user = users.find(u => u.email === email && u.pass === pass);
+      if (!user) { alert('Invalid credentials.'); return; }
+      setSignedIn(email);
+      hideAuthOverlay();
+      initAfterSignIn();
+    });
+
+    signupBtn.addEventListener('click', () => {
+      const email = (signupEmail.value || '').trim().toLowerCase();
+      const pass = (signupPassword.value || '').trim();
+      if (!email || !pass) { alert('Enter email and password.'); return; }
+      let users = getUsers();
+      if (users.some(u => u.email === email)) { alert('Account already exists.'); return; }
+      users.push({ email, pass });
+      setUsers(users);
+      setSignedIn(email);
+      hideAuthOverlay();
+      initAfterSignIn();
+    });
+
+    authDemo.addEventListener('click', () => {
+      setSignedIn('demo@example.com');
+      hideAuthOverlay();
+      initAfterSignIn();
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      if (!confirm('Sign out?')) return;
+      stopAlarm();
+      clearSignedIn();
+      showAuthOverlay(false);
+      if (timer.running) pauseTimer();
+    });
+
+    // --- On Load: Render sessions, chart, dark mode, alarms (only after sign-in) ---
+    function initAfterSignIn() {
+      setDarkMode(getDarkMode());
+      alarms = loadAlarms();
+      renderAlarms();
+      renderSessions();
+      renderChart();
+      updateTimerDisplay();
+      if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission();
+      }
+      logoutBtn.style.display = 'inline-block';
+    }
+
+    window.addEventListener('load', () => {
+      if (!isSignedIn()) {
+        showAuthOverlay(false);
+      } else {
+        hideAuthOverlay();
+        initAfterSignIn();
+      }
+    });
+
+    // --- Accessibility: Keyboard shortcuts ---
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        if (timer.running) pauseTimer();
+        else if (timer.elapsed > 0) resumeTimer();
+        else startTimer();
+      }
+      if (e.code === 'KeyR') resetTimer();
+      if (e.code === 'KeyD') setDarkMode(!getDarkMode());
+    });
+  </script>
 </body>
 </html>
