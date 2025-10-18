@@ -296,7 +296,6 @@
       <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password" />
       <button id="authSignIn" type="button">Sign in</button>
       <button class="link-btn" id="showSignup" type="button">Create account</button>
-      <button id="authDemo" type="button" style="background:#f0f4f9;color:var(--primary);border:none;border-radius:8px;">Demo</button>
       <p style="margin:0;font-size:.85rem;color:#666;">This demo stores accounts in localStorage. Not secure for production.</p>
     </div>
     <div class="auth-card" id="signUpCard" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
@@ -419,7 +418,6 @@
     const signInCard = document.getElementById('signInCard');
     const signUpCard = document.getElementById('signUpCard');
     const authSignIn = document.getElementById('authSignIn');
-    const authDemo = document.getElementById('authDemo');
     const authEmail = document.getElementById('authEmail');
     const authPassword = document.getElementById('authPassword');
     const showSignup = document.getElementById('showSignup');
@@ -870,12 +868,6 @@
       initAfterSignIn();
     });
 
-    authDemo.addEventListener('click', () => {
-      setSignedIn('demo@example.com');
-      hideAuthOverlay();
-      initAfterSignIn();
-    });
-
     logoutBtn.addEventListener('click', () => {
       if (!confirm('Sign out?')) return;
       stopAlarm();
@@ -921,3 +913,4 @@
   </script>
 </body>
 </html>
+
