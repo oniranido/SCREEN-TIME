@@ -20,7 +20,7 @@
       --bg: #181c23;
       --text: #f7f9fb;
       --card: #232834;
-      --accent: #2a3140;
+      --accent: #2a31440;
       --shadow: 0 2px 16px rgba(79,140,255,0.15);
     }
     html, body {
@@ -162,7 +162,7 @@
       transition: background var(--transition);
     }
     [data-theme="dark"] .alarm-section {
-      background: linear-gradient(120deg, #2a3140 60%, #3a4a6b 100%);
+      background: linear-gradient(120deg, #2a31440 60%, #3a4a6b 100%);
     }
     .alarm-section::before {
       content: "";
@@ -238,7 +238,7 @@
       background: #e0e7ef; color: #4f8cff; border: none; border-radius: 0.5em; padding: 0.3em 0.9em; font-size: 0.98em; font-weight: 500; margin-left: 0.2em; cursor: pointer;
     }
     .alarm-section ul li button:hover { background: #4f8cff; color: #fff; }
-    [data-theme="dark"] .alarm-section ul li button { background: #2a3140; color: #b0c7f7; }
+    [data-theme="dark"] .alarm-section ul li button { background: #2a31440; color: #b0c7f7; }
     [data-theme="dark"] .alarm-section ul li button:hover { background: #4f8cff; color: #fff; }
     .alarm-section .alarm-title {
       font-size: 1.18em; font-weight: 700; color: #4f8cff; margin-bottom: 0.7em; letter-spacing: 0.5px; text-align: left; display: flex; align-items: center; gap: 0.5em;
@@ -349,13 +349,14 @@
         <label>
           Tone
           <select id="alarmTone">
-            <option value="alarm-327234.mp3">Gentle Chime</option>
+            <option value="iphone-sonnerie-270108.mp3">Buzzing</option>
             <option value="notification-bell-sound-376888.mp3">Soft Bell</option>
-            <option value="nature.mp3">Nature Sound</option>
-            <option value="alarm.mp3">Default</option>
+            <option value="new-notification-3-398649.mp3">Notify</option>
+            <option value="czechoslovakia-eas-alarm-1968-extended-362029.mp3">Classic</option>
             <option value="custom">Upload MP3...</option>
           </select>
-          <input type="file" id="customAlarmFile" accept="audio/mp3,audio/mpeg" style="display:none;">
+          <button id="previewToneBtn" type="button" style="margin-left:.5em;">Preview</button>
+          <input type="file" id="customAlarmFile" accept="audio/*" style="display:none;">
         </label>
         <button type="submit" style="margin-top:0.5em;">Add Alarm</button>
       </form>
@@ -377,9 +378,12 @@
     &copy; 2025 Digital Well Being , Designed for the Management
   </footer>
 
-  <audio id="alarmAudio" preload="auto" src="alarm-327234.mp3"></audio>
+  <audio id="alarmAudio" preload="auto" src="iphone-sonnerie-270108.mp3"></audio>
 
   <script>
+    // --- Default tone constant ---
+    const DEFAULT_TONE = 'iphone-sonnerie-270108.mp3';
+
     // --- Timer State ---
     let timer = {
       startTime: null,
@@ -394,6 +398,7 @@
     let alarms = [];
     let editingAlarmId = null;
     let alarmInterval = null;
+    let previewObjectUrl = null;
 
     // --- DOM Elements ---
     const timerDisplay = document.getElementById('timerDisplay');
@@ -411,6 +416,7 @@
     const alarmLabel = document.getElementById('alarmLabel');
     const alarmTone = document.getElementById('alarmTone');
     const customAlarmFile = document.getElementById('customAlarmFile');
+    const previewToneBtn = document.getElementById('previewToneBtn');
     const alarmsList = document.getElementById('alarmsList');
     const alarmAudio = document.getElementById('alarmAudio');
 
@@ -435,6 +441,12 @@
     const USERS_KEY = 'digitalWellBeingUsers';
     const SIGNED_KEY = 'dwb_signed_in';
     const SIGNED_EMAIL = 'dwb_user_email';
+
+    // helper: return a per-user storage key (uses signed-in email)
+    function userKey(baseKey) {
+      const email = localStorage.getItem(SIGNED_EMAIL) || '';
+      return `${baseKey}::${email || 'anon'}`;
+    }
 
     // --- Utility: Format seconds as HH:MM:SS ---
     function formatTime(sec) {
@@ -520,29 +532,28 @@
         }
       }
     }
+
+    // simplified: always set audio src to selected tone (or customSrc), don't whitelist filenames
     function playAlarm(alarm) {
-      if (alarm.tone === "custom" && alarm.customSrc) {
+      stopPreviewObjectUrl();
+      if (alarm && alarm.tone === 'custom' && alarm.customSrc) {
         alarmAudio.src = alarm.customSrc;
-      } else if (
-        alarm.tone === "alarm-327234.mp3" ||
-        alarm.tone === "notification-bell-sound-376888.mp3" ||
-        alarm.tone === "nature.mp3" ||
-        alarm.tone === "alarm.mp3"
-      ) {
-        alarmAudio.src = alarm.tone;
       } else {
-        alarmAudio.src = "alarm-327234.mp3";
+        // use saved tone value if present, otherwise fallback to DEFAULT_TONE
+        alarmAudio.src = alarm && alarm.tone ? alarm.tone : DEFAULT_TONE;
       }
+      // ensure load and play
+      try { alarmAudio.load(); } catch(e){}
       alarmAudio.currentTime = 0;
       alarmAudio.volume = 1.0;
-      alarmAudio.play().catch(()=>{});
+      alarmAudio.play().catch(()=>{ /* autoplay may be blocked until user interacts */ });
       if (alarmInterval) clearInterval(alarmInterval);
       alarmInterval = setInterval(() => {
-        alarmAudio.currentTime = 0;
-        alarmAudio.play().catch(()=>{});
+        try { alarmAudio.currentTime = 0; alarmAudio.play().catch(()=>{}); } catch(e){}
       }, 3000);
       showNotification(alarm.label || "Alarm", "Your alarm time is up!");
     }
+
     function stopAlarm() {
       alarmAudio.pause();
       alarmAudio.currentTime = 0;
@@ -602,13 +613,13 @@
       }
     }
 
-    // --- Session Storage ---
+    // --- Session Storage (per-user) ---
     function getSessions() {
-      const data = localStorage.getItem(SESSIONS_KEY);
+      const data = localStorage.getItem(userKey(SESSIONS_KEY));
       if (!data) return [];
       try { return JSON.parse(data); } catch { return []; }
     }
-    function setSessions(sessions) { localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions)); }
+    function setSessions(sessions) { localStorage.setItem(userKey(SESSIONS_KEY), JSON.stringify(sessions)); }
     function saveSession(duration, startDate, endDate) {
       if (duration < 1) return;
       const sessions = getSessions();
@@ -687,36 +698,93 @@
       });
     }
 
-    // --- Dark Mode ---
+    // --- Dark Mode (per-user) ---
     function setDarkMode(on) {
       document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
-      localStorage.setItem(DARK_KEY, on ? '1' : '0');
+      localStorage.setItem(userKey(DARK_KEY), on ? '1' : '0');
       darkIcon.innerHTML = on
         ? `<path d="M21.64 13.64A9 9 0 1 1 10.36 2.36a7 7 0 1 0 11.28 11.28z"/>`
         : `<path d="M12 3a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1zm6.364 2.636a1 1 0 0 1 1.414 1.414l-.707.707a1 1 0 1 1-1.414-1.414l.707-.707zM21 11a1 1 0 1 1 0 2h-1a1 1 0 1 1 0-2h1zm-2.636 6.364a1 1 0 0 1-1.414 1.414l-.707-.707a1 1 0 1 1 1.414-1.414l.707.707zM12 19a1 1 0 0 1-1-1v-1a1 1 0 1 1 2 0v1a1 1 0 0 1-1 1zm-6.364-2.636a1 1 0 0 1-1.414-1.414l.707-.707a1 1 0 1 1 1.414 1.414l-.707.707zM3 13a1 1 0 1 1 0-2h1a1 1 0 1 1 0 2H3zm2.636-6.364a1 1 0 0 1 1.414-1.414l.707.707A1 1 0 1 1 6.05 7.05l-.707-.707z"/>`;
       renderChart();
     }
-    function getDarkMode() { return localStorage.getItem(DARK_KEY) === '1'; }
+    function getDarkMode() { return localStorage.getItem(userKey(DARK_KEY)) === '1'; }
     darkToggle.onclick = () => setDarkMode(!getDarkMode());
 
-    // --- Alarms Storage ---
+    // --- Alarms Storage (per-user) ---
     function saveAlarms() {
-      localStorage.setItem(ALARMS_KEY, JSON.stringify(alarms.map(a => ({
-        ...a,
-        customSrc: a.tone === "custom" ? a.customSrc : null
+      localStorage.setItem(userKey(ALARMS_KEY), JSON.stringify(alarms.map(a => ({
+        id: a.id,
+        hours: a.hours,
+        minutes: a.minutes,
+        label: a.label,
+        tone: a.tone,
+        customSrc: a.tone === 'custom' ? (a.customSrc || null) : null,
+        triggered: false
       }))));
     }
     function loadAlarms() {
-      const data = localStorage.getItem(ALARMS_KEY);
+      const data = localStorage.getItem(userKey(ALARMS_KEY));
       if (!data) return [];
       try {
         const arr = JSON.parse(data);
-        arr.forEach(a => { a.triggered = false; if (!a.hasOwnProperty('hours')) a.hours = 0; });
-        return arr;
-      } catch { return []; }
+        return arr.map(a => ({
+          id: a.id || (Date.now().toString() + Math.random().toString(36).slice(2)),
+          hours: (typeof a.hours !== 'undefined') ? a.hours : 0,
+          minutes: (typeof a.minutes !== 'undefined') ? a.minutes : 0,
+          label: a.label || 'Alarm',
+          tone: a.tone || DEFAULT_TONE,
+          customSrc: a.customSrc || null,
+          triggered: false
+        }));
+      } catch (e) { return []; }
     }
 
-    // --- Render Alarms List ---
+    // --- Helpers for file reading and preview ---
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('read error'));
+        reader.readAsDataURL(file);
+      });
+    }
+    function stopPreviewObjectUrl() {
+      if (previewObjectUrl) {
+        try { URL.revokeObjectURL(previewObjectUrl); } catch(e){}
+        previewObjectUrl = null;
+      }
+    }
+    function previewToneValue(value) {
+      stopPreviewObjectUrl();
+      if (!value) return;
+      if (value === 'custom') {
+        const f = customAlarmFile.files && customAlarmFile.files[0];
+        if (f) {
+          previewObjectUrl = URL.createObjectURL(f);
+          alarmAudio.src = previewObjectUrl;
+          alarmAudio.currentTime = 0;
+          alarmAudio.play().catch(()=>{});
+          setTimeout(() => stopPreviewObjectUrl(), 4000);
+        } else if (editingAlarmId) {
+          const alarm = alarms.find(a => a.id === editingAlarmId);
+          if (alarm && alarm.customSrc) {
+            alarmAudio.src = alarm.customSrc;
+            alarmAudio.currentTime = 0;
+            alarmAudio.play().catch(()=>{});
+          } else {
+            alert('No uploaded file to preview. Choose a file.');
+          }
+        } else {
+          alert('Choose a file to preview.');
+        }
+      } else {
+        alarmAudio.src = value || DEFAULT_TONE;
+        alarmAudio.currentTime = 0;
+        alarmAudio.play().catch(()=>{});
+      }
+    }
+
+    // --- Render Alarms List (includes Play button) ---
     function renderAlarms() {
       alarmsList.innerHTML = '';
       if (alarms.length === 0) {
@@ -734,16 +802,33 @@
         timeStr += `${alarm.minutes}min`;
         li.innerHTML = `
           <span>
-            <b>${alarm.label}</b> &mdash; ${timeStr}
+            <b>${escapeHtml(alarm.label)}</b> &mdash; ${timeStr}
             ${alarm.tone === "custom" ? "🎵" : ""}
-            ${["alarm-327234.mp3","notification-bell-sound-376888.mp3","nature.mp3"].includes(alarm.tone) ? "🎶" : ""}
+            ${["iphone-sonnerie-270108.mp3","notification-bell-sound-376888.mp3","new-notification-3-398649.mp3","czechoslovakia-eas-alarm-1968-extended-362029.mp3"].includes(alarm.tone) ? "🎶" : ""}
           </span>
           <span>
+            <button data-play="${alarm.id}" style="margin-right:.3em;">Play</button>
             <button data-edit="${alarm.id}" style="margin-right:0.3em;">Edit</button>
             <button data-delete="${alarm.id}">Delete</button>
           </span>
         `;
         alarmsList.appendChild(li);
+      });
+      alarmsList.querySelectorAll('button[data-play]').forEach(btn => {
+        btn.onclick = () => {
+          const id = btn.getAttribute('data-play');
+          const alarm = alarms.find(a => a.id === id);
+          if (!alarm) return;
+          stopPreviewObjectUrl();
+          if (alarm.tone === 'custom' && alarm.customSrc) {
+            alarmAudio.src = alarm.customSrc;
+          } else {
+            alarmAudio.src = alarm.tone || DEFAULT_TONE;
+          }
+          alarmAudio.currentTime = 0;
+          alarmAudio.play().catch(()=>{});
+          setTimeout(() => { alarmAudio.pause(); alarmAudio.currentTime = 0; }, 5000);
+        };
       });
       alarmsList.querySelectorAll('button[data-edit]').forEach(btn => {
         btn.onclick = () => editAlarm(btn.getAttribute('data-edit'));
@@ -753,15 +838,34 @@
       });
     }
 
-    // --- Add/Edit/Delete Alarm ---
-    alarmForm.onsubmit = function(e) {
+    // --- HTML escape helper ---
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // --- Add/Edit/Delete Alarm (stores uploaded file as dataURL for persistence) ---
+    alarmForm.onsubmit = async function(e) {
       e.preventDefault();
       const hours = parseInt(alarmHours.value) || 0;
       const minutes = parseInt(alarmMinutes.value) || 0;
-      const label = alarmLabel.value.trim() || "Alarm";
-      let tone = alarmTone.value;
-      let customSrc = null;
-      if (tone === "custom" && customAlarmFile.files[0]) customSrc = URL.createObjectURL(customAlarmFile.files[0]);
+      const label = (alarmLabel.value || 'Alarm').trim();
+      const tone = alarmTone.value;
+      const file = customAlarmFile.files && customAlarmFile.files[0];
+
+      let customDataUrl = null;
+      if (tone === 'custom' && file) {
+        const allowed = ['audio/mp3','audio/mpeg','audio/ogg','audio/wav','audio/mp4','audio/x-m4a','audio/webm','audio/x-wav'];
+        if (!allowed.includes(file.type) && !file.name.toLowerCase().endsWith('.mp3')) {
+          alert('Unsupported audio file type. Please upload a common audio file (mp3, wav, ogg).');
+          return;
+        }
+        customDataUrl = await readFileAsDataURL(file).catch(() => null);
+        if (!customDataUrl) {
+          alert('Failed to read uploaded audio.');
+          return;
+        }
+      }
+
       if (editingAlarmId) {
         const idx = alarms.findIndex(a => a.id === editingAlarmId);
         if (idx !== -1) {
@@ -769,23 +873,35 @@
           alarms[idx].minutes = minutes;
           alarms[idx].label = label;
           alarms[idx].tone = tone;
-          if (tone === "custom" && customSrc) {
-            alarms[idx].customSrc && URL.revokeObjectURL(alarms[idx].customSrc);
-            alarms[idx].customSrc = customSrc;
+          if (tone === 'custom') {
+            alarms[idx].customSrc = customDataUrl || alarms[idx].customSrc || null;
+          } else {
+            alarms[idx].customSrc = null;
           }
         }
         editingAlarmId = null;
         alarmForm.querySelector('button[type="submit"]').textContent = "Add Alarm";
       } else {
         const id = Date.now().toString() + Math.random().toString(36).slice(2);
-        alarms.push({ id, hours, minutes, label, tone, customSrc, triggered: false });
+        alarms.push({
+          id,
+          hours,
+          minutes,
+          label,
+          tone,
+          customSrc: tone === 'custom' ? (customDataUrl || null) : null,
+          triggered: false
+        });
       }
+
       alarmForm.reset();
       alarmHours.value = 0;
-      customAlarmFile.style.display = "none";
+      customAlarmFile.style.display = 'none';
+      stopPreviewObjectUrl();
       renderAlarms();
       saveAlarms();
     };
+
     function editAlarm(id) {
       const alarm = alarms.find(a => a.id === id);
       if (!alarm) return;
@@ -798,15 +914,16 @@
       alarmForm.querySelector('button[type="submit"]').textContent = "Save Alarm";
     }
     function deleteAlarm(id) {
+      if (!confirm('Delete this alarm?')) return;
       const idx = alarms.findIndex(a => a.id === id);
       if (idx !== -1) {
-        if (alarms[idx].customSrc) URL.revokeObjectURL(alarms[idx].customSrc);
         alarms.splice(idx, 1);
         renderAlarms();
         saveAlarms();
       }
     }
     alarmTone.onchange = function() { customAlarmFile.style.display = alarmTone.value === "custom" ? "" : "none"; };
+    previewToneBtn.addEventListener('click', () => previewToneValue(alarmTone.value));
 
     // --- Timer Button Event Listeners ---
     startBtn.onclick = startTimer;
@@ -878,6 +995,7 @@
 
     // --- On Load: Render sessions, chart, dark mode, alarms (only after sign-in) ---
     function initAfterSignIn() {
+      // apply per-user dark mode, alarms and sessions
       setDarkMode(getDarkMode());
       alarms = loadAlarms();
       renderAlarms();
@@ -913,4 +1031,3 @@
   </script>
 </body>
 </html>
-
